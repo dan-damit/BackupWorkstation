@@ -178,7 +178,7 @@ namespace BackupWorkstation
             return result == 0;
         }
 
-        // Helper to count all files in specified directories
+        // Count all files in specified directories for progress tracking
         private int CountAllFiles(string userProfile, string[] profileDirs, Dictionary<string, string> appDataDirs)
         {
             int count = 0;
@@ -186,15 +186,41 @@ namespace BackupWorkstation
             foreach (var dir in profileDirs)
             {
                 string source = Path.Combine(userProfile, dir);
-                if (Directory.Exists(source))
-                    count += Directory.GetFiles(source, "*", SearchOption.AllDirectories).Length;
+                if (Directory.Exists(source) && !IsReparsePoint(source))
+                {
+                    try
+                    {
+                        count += Directory.GetFiles(source, "*", SearchOption.AllDirectories).Length;
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"⚠ Skipped '{source}' during file count: {ex.Message}");
+                    }
+                }
+                else if (IsReparsePoint(source))
+                {
+                    Log($"⚠ Skipped reparse point '{source}' during file count.");
+                }
             }
 
             foreach (var kvp in appDataDirs)
             {
                 string source = Path.Combine(userProfile, kvp.Key);
-                if (Directory.Exists(source))
-                    count += Directory.GetFiles(source, "*", SearchOption.AllDirectories).Length;
+                if (Directory.Exists(source) && !IsReparsePoint(source))
+                {
+                    try
+                    {
+                        count += Directory.GetFiles(source, "*", SearchOption.AllDirectories).Length;
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"⚠ Skipped '{source}' during file count: {ex.Message}");
+                    }
+                }
+                else if (IsReparsePoint(source))
+                {
+                    Log($"⚠ Skipped reparse point '{source}' during file count.");
+                }
             }
 
             return count;
@@ -217,6 +243,12 @@ namespace BackupWorkstation
         // Core directory copy logic with progress updates
         private void CopyDirectory(string sourceDir, string destDir)
         {
+            if (IsReparsePoint(sourceDir))
+            {
+                Log($"⚠ Skipped reparse point '{sourceDir}' during copy.");
+                return;
+            }
+
             try
             {
                 Directory.CreateDirectory(destDir);
@@ -227,7 +259,16 @@ namespace BackupWorkstation
                 return;
             }
 
-            var allFiles = Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
+            string[] allFiles;
+            try
+            {
+                allFiles = Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
+            }
+            catch (Exception ex)
+            {
+                Log($"⚠ Failed to enumerate files in '{sourceDir}': {ex.Message}");
+                return;
+            }
 
             foreach (var file in allFiles)
             {
@@ -236,15 +277,23 @@ namespace BackupWorkstation
 
                 var dirName = Path.GetDirectoryName(destFile);
                 if (!string.IsNullOrEmpty(dirName))
-                    Directory.CreateDirectory(dirName);
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(dirName);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"⚠ Failed to create directory '{dirName}': {ex.Message}");
+                        continue;
+                    }
+                }
 
                 try
                 {
                     File.Copy(file, destFile, true);
                     _filesCopied++;
                     Log($"Copied file: {relativePath}");
-
-                    // Global per‑file progress update
                     ProgressChanged?.Invoke(_filesCopied, _totalFiles, $"Copying file: {relativePath}");
                 }
                 catch (Exception ex)
@@ -273,13 +322,6 @@ namespace BackupWorkstation
             return null;
         }
 
-        // Logging helper
-        private void Log(string message)
-        {
-            Logger.Log(message);
-            LogMessage?.Invoke(message);
-        }
-
         // --- Secure password input for console ---
         private string ReadPassword()
         {
@@ -305,6 +347,27 @@ namespace BackupWorkstation
 
             Console.WriteLine();
             return pass;
+        }
+
+        // Check if a directory is a reparse point (symlink/junction)
+        private bool IsReparsePoint(string path)
+        {
+            try
+            {
+                var attr = File.GetAttributes(path);
+                return (attr & FileAttributes.ReparsePoint) != 0;
+            }
+            catch
+            {
+                return false; // If we can't read attributes, treat it as non-reparse
+            }
+        }
+
+        // Logging helper
+        private void Log(string message)
+        {
+            Logger.Log(message);
+            LogMessage?.Invoke(message);
         }
     }
 }

@@ -24,14 +24,14 @@
 		<IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
 		<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
 
-		<Version>3.2.$([System.DateTime]::Now.ToString("yyMM")).$([System.DateTime]::Now.ToString("ddHH"))</Version>
+		<Version>3.3.$([System.DateTime]::Now.ToString("yyMM")).$([System.DateTime]::Now.ToString("ddHH"))</Version>
 
 		<!-- Embed manifest for admin elevation -->
 		<ApplicationManifest>app.manifest</ApplicationManifest>
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <Folder Include="Assets\" />
+	  <Folder Include="Assets\*" />
 	</ItemGroup>
 
 	<ItemGroup>
