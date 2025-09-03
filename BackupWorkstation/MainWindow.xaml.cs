@@ -1,18 +1,23 @@
 ﻿using BackupWorkstation;
+using Microsoft.WindowsAPICodePack.Dialogs;
 using System;
 using System.Collections.ObjectModel;
+using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
-using Microsoft.WindowsAPICodePack.Dialogs;
 
 namespace BackupWorkstation
 {
+    [SupportedOSPlatform("windows")]
     public partial class MainWindow : Window
     {
+        // Fields
         private ObservableCollection<string> _logEntries = new ObservableCollection<string>();
         private BackupManager _backupManager;
 
+        // Constructor
         public MainWindow()
         {
             InitializeComponent();
@@ -23,6 +28,17 @@ namespace BackupWorkstation
             _backupManager.ProgressChanged += OnProgressChanged;
         }
 
+        // Enable window dragging from the title bar area
+        private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            // Allow dragging the window when the left mouse button is held down
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                DragMove();
+            }
+        }
+
+        // Browse for backup destination folder
         private void Browse_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new CommonOpenFileDialog
@@ -37,6 +53,7 @@ namespace BackupWorkstation
             }
         }
 
+        // Start the backup process
         private async void StartBackup_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtBackupPath.Text) || string.IsNullOrWhiteSpace(txtUsername.Text))
@@ -51,6 +68,7 @@ namespace BackupWorkstation
             await _backupManager.RunBackupAsync(txtUsername.Text, txtBackupPath.Text);
         }
 
+        // Update log messages in the UI
         private void OnLogMessage(string message)
         {
             Dispatcher.Invoke(() =>
@@ -60,6 +78,7 @@ namespace BackupWorkstation
             });
         }
 
+        // Update progress bar and window title
         private void OnProgressChanged(int current, int total, string status)
         {
             Dispatcher.Invoke(() =>
@@ -68,6 +87,8 @@ namespace BackupWorkstation
                 Title = $"Workstation Backup Tool - {status}";
             });
         }
+
+        // Close the application
         private void Close_Click(object sender, RoutedEventArgs e)
         {
             Close();

@@ -1,15 +1,19 @@
 ﻿using BackupWorkstation;
 using System;
 using System.IO;
+using System.Runtime.Versioning;
 using System.Threading.Tasks;
 
 namespace BackupWorkstation
 {
+    [SupportedOSPlatform("windows")]
     public class BackupManager
     {
+        // Events
         public event Action<string>? LogMessage;
         public event Action<int, int, string>? ProgressChanged;
 
+        // Main backup method
         public async Task RunBackupAsync(string sourceUser, string backupRoot)
         {
             string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -47,6 +51,7 @@ namespace BackupWorkstation
             ProgressChanged?.Invoke(total, total, "Backup Complete");
         }
 
+        // Helper method to copy directories recursively
         private void CopyDirectory(string sourceDir, string destDir)
         {
             Directory.CreateDirectory(destDir);
@@ -60,6 +65,7 @@ namespace BackupWorkstation
             }
         }
 
+        // Logging method
         private void Log(string message)
         {
             Logger.Log(message);
