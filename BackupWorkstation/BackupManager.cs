@@ -4,6 +4,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace BackupWorkstation
 {
@@ -38,6 +39,10 @@ namespace BackupWorkstation
         // Main backup method
         public async Task RunBackupAsync(string sourceUser, string backupRoot)
         {
+            // Always have a logger target, even if backupRoot is inaccessible
+            string tempLogPath = Path.Combine(Path.GetTempPath(), "BackupWorkstation_startup_log.txt");
+            Logger.Init(tempLogPath);
+
             // --- Preflight UNC path access check ---
             if (!TestPathAccess(backupRoot))
             {
@@ -145,18 +150,18 @@ namespace BackupWorkstation
             }
         }
 
-        // --- Simple console-based credential prompt  ---
+        // --- Simple WPF credential prompt  ---
         private (string user, string pass)? PromptForCredentials(string sharePath)
         {
-            Console.WriteLine($"Enter credentials for {sharePath}:");
-            Console.Write("Username: ");
-            string? user = Console.ReadLine();
-            Console.Write("Password: ");
-            string? pass = ReadPassword();
+            var dialog = new CredentialPromptWindow(sharePath)
+            {
+                Owner = Application.Current.MainWindow
+            };
 
-            if (!string.IsNullOrWhiteSpace(user) && !string.IsNullOrWhiteSpace(pass))
-                return (user, pass);
-
+            if (dialog.ShowDialog() == true)
+            {
+                return (dialog.Username, dialog.Password);
+            }
             return null;
         }
 
