@@ -1,0 +1,21 @@
+# Ignore Visual Studio folders
+.vs/
+*.bin
+
+# Ignore build artifacts
+bin/
+obj/
+Publish/
+Deploy/
+*.wixpdb
+*.user
+*.suo
+*.cache
+*.log
+*.snk
+*.sln
+*.html
+*.htm
+AcroRdrInstaller.exe
+WS_Setup.exe
+Settings.settings
