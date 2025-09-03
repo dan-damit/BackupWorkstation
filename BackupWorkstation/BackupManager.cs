@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
 
@@ -17,9 +18,50 @@ namespace BackupWorkstation
         private int _filesCopied;
         private int _totalFiles;
 
+        // --- NEW: Win32 API for network share connection ---
+        [DllImport("mpr.dll")]
+        private static extern int WNetAddConnection2(ref NETRESOURCE netResource, string password, string username, int flags);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NETRESOURCE
+        {
+            public int dwScope;
+            public int dwType;
+            public int dwDisplayType;
+            public int dwUsage;
+            public string lpLocalName;
+            public string lpRemoteName;
+            public string lpComment;
+            public string lpProvider;
+        }
+
         // Main backup method
         public async Task RunBackupAsync(string sourceUser, string backupRoot)
         {
+            // --- Preflight UNC path access check ---
+            if (!TestPathAccess(backupRoot))
+            {
+                Log($"⚠ Cannot access '{backupRoot}'. Prompting for credentials...");
+                var creds = PromptForCredentials(backupRoot);
+                if (creds.HasValue)
+                {
+                    if (!ConnectToShare(backupRoot, creds.Value.user, creds.Value.pass))
+                    {
+                        Log("❌ Could not connect to network share with provided credentials. Backup aborted.");
+                        return;
+                    }
+                    else
+                    {
+                        Log("🔑 Network share connected successfully.");
+                    }
+                }
+                else
+                {
+                    Log("❌ Backup cancelled — no credentials provided.");
+                    return;
+                }
+            }
+
             string? userProfile = ResolveUserProfilePath(sourceUser);
 
             if (userProfile == null)
@@ -81,6 +123,56 @@ namespace BackupWorkstation
             ProgressChanged?.Invoke(_totalFiles, _totalFiles, "Backup Complete");
         }
 
+        // --- Test if path is accessible ---
+        private bool TestPathAccess(string path)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.GetDirectories(path);
+                    return true;
+                }
+                return false;
+            }
+            catch (IOException ex) when (ex.Message.Contains("user name or password", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
+        // --- Simple console-based credential prompt  ---
+        private (string user, string pass)? PromptForCredentials(string sharePath)
+        {
+            Console.WriteLine($"Enter credentials for {sharePath}:");
+            Console.Write("Username: ");
+            string? user = Console.ReadLine();
+            Console.Write("Password: ");
+            string? pass = ReadPassword();
+
+            if (!string.IsNullOrWhiteSpace(user) && !string.IsNullOrWhiteSpace(pass))
+                return (user, pass);
+
+            return null;
+        }
+
+        // --- Connect to network share ---
+        private bool ConnectToShare(string sharePath, string username, string password)
+        {
+            var nr = new NETRESOURCE
+            {
+                dwType = 1, // RESOURCETYPE_DISK
+                lpRemoteName = sharePath
+            };
+
+            int result = WNetAddConnection2(ref nr, password, username, 0);
+            return result == 0;
+        }
+
         // Helper to count all files in specified directories
         private int CountAllFiles(string userProfile, string[] profileDirs, Dictionary<string, string> appDataDirs)
         {
@@ -120,7 +212,15 @@ namespace BackupWorkstation
         // Core directory copy logic with progress updates
         private void CopyDirectory(string sourceDir, string destDir)
         {
-            Directory.CreateDirectory(destDir);
+            try
+            {
+                Directory.CreateDirectory(destDir);
+            }
+            catch (IOException ex)
+            {
+                Log($"❌ Failed to create backup directory: {ex.Message}");
+                return;
+            }
 
             var allFiles = Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
 
@@ -173,6 +273,33 @@ namespace BackupWorkstation
         {
             Logger.Log(message);
             LogMessage?.Invoke(message);
+        }
+
+        // --- Secure password input for console ---
+        private string ReadPassword()
+        {
+            var pass = string.Empty;
+            ConsoleKey key;
+            do
+            {
+                var keyInfo = Console.ReadKey(intercept: true);
+                key = keyInfo.Key;
+
+                if (key == ConsoleKey.Backspace && pass.Length > 0)
+                {
+                    pass = pass.Substring(0, pass.Length - 1);
+                    Console.Write("\b \b"); // erase last char
+                }
+                else if (!char.IsControl(keyInfo.KeyChar))
+                {
+                    pass += keyInfo.KeyChar;
+                    Console.Write("*");
+                }
+            }
+            while (key != ConsoleKey.Enter);
+
+            Console.WriteLine();
+            return pass;
         }
     }
 }
