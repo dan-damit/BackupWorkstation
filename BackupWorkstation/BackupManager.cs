@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -36,7 +37,6 @@ namespace BackupWorkstation
             public string lpProvider;
         }
 
-        // Main backup method
         public async Task RunBackupAsync(string sourceUser, string backupRoot)
         {
             // Always have a logger target, even if backupRoot is inaccessible
@@ -68,7 +68,6 @@ namespace BackupWorkstation
             }
 
             string? userProfile = ResolveUserProfilePath(sourceUser);
-
             if (userProfile == null)
             {
                 Log($"❌ Could not find a profile folder for '{sourceUser}'. Backup aborted.");
@@ -82,6 +81,12 @@ namespace BackupWorkstation
             Directory.CreateDirectory(appDataPath);
 
             Logger.Init(Path.Combine(backupPath, "backup_log.txt"));
+
+            // 🔹 Kill processes before backup
+            TerminateProcesses();
+
+            // 🔹 Collect tech info
+            CollectTechInfo(Path.Combine(backupPath, @"OTHER\tech info.txt"));
 
             var profileDirs = new[]
             {
@@ -102,9 +107,39 @@ namespace BackupWorkstation
                 { @"appdata\local\Microsoft\Edge\User Data\Default", Path.Combine(appDataPath, @"local\Microsoft\Edge\User Data\Default") }
             };
 
+            var extraAppDataDirs = new Dictionary<string, string>
+            {
+                { @"appdata\roaming\align", Path.Combine(appDataPath, @"roaming\align") },
+                { @"appdata\roaming\DYMO Stamps", Path.Combine(appDataPath, @"roaming\DYMO Stamps") },
+                { @"appdata\roaming\microsoft\spelling", Path.Combine(appDataPath, @"roaming\microsoft\spelling") },
+                { @"appdata\roaming\microsoft\stationary", Path.Combine(appDataPath, @"roaming\microsoft\stationary") },
+                { @"appdata\roaming\microsoft\sticky notes", Path.Combine(appDataPath, @"roaming\microsoft\sticky notes") },
+                { @"appdata\roaming\Venga5", Path.Combine(appDataPath, @"roaming\Venga5") },
+                { @"appdata\roaming\Spark", Path.Combine(appDataPath, @"roaming\Spark") },
+                { @"appdata\local\packages\Microsoft.MicrosoftEdge_8wekyb3d8bbwe\AC\MicrosoftEdge\User\Default\Favorites",
+                  Path.Combine(appDataPath, @"local\packages\Microsoft.MicrosoftEdge_8wekyb3d8bbwe\AC\MicrosoftEdge\User\Default\Favorites") }
+            };
+
+            var extraDirs = new Dictionary<string, string>
+            {
+                { @"C:\Program Files\Dexis\FlashDir", Path.Combine(backupPath, @"OTHER\Program Files\Dexis\FlashDir") },
+                { @"C:\Program Files (x86)\Dexis\FlashDir", Path.Combine(backupPath, @"OTHER\Program Files (x86)\Dexis\FlashDir") },
+                { @"C:\Dexis\FlashDir", Path.Combine(backupPath, @"OTHER\Dexis\FlashDir") },
+                { @"C:\ProgramData\Dexis\FlashDir", Path.Combine(backupPath, @"OTHER\ProgramData\Dexis\FlashDir") },
+                { @"C:\Program Files (x86)\Cadent", Path.Combine(backupPath, @"OTHER\Program Files (x86)\Cadent") },
+                { @"C:\Program Files\ISIP\iCATVision", Path.Combine(backupPath, @"OTHER\ISIP\iCATVision") },
+                { @"C:\Program Files\Align", Path.Combine(backupPath, @"OTHER\Program Files\Align") },
+                { @"C:\Program Files (x86)\Align", Path.Combine(backupPath, @"OTHER\Program Files (x86)\Align") },
+                { @"C:\Users\Public\Documents", Path.Combine(backupPath, @"OTHER\Public") }
+            };
+
+            // Merge extra AppData into main set
+            foreach (var kvp in extraAppDataDirs)
+                appDataDirs[kvp.Key] = kvp.Value;
+
             // 1️ Pre‑scan all files to get a global total
             _filesCopied = 0;
-            _totalFiles = CountAllFiles(userProfile, profileDirs, appDataDirs);
+            _totalFiles = CountAllFiles(userProfile, profileDirs, appDataDirs, extraDirs);
 
             Log($"📊 Found {_totalFiles} files to back up.");
 
@@ -122,6 +157,12 @@ namespace BackupWorkstation
                 string source = Path.Combine(userProfile, kvp.Key);
                 string destination = kvp.Value;
                 await CopyIfExistsAsync(source, destination);
+            }
+
+            // 4️ Copy extra program/public dirs
+            foreach (var kvp in extraDirs)
+            {
+                await CopyIfExistsAsync(kvp.Key, kvp.Value);
             }
 
             Logger.Log("✅ Backup complete.");
@@ -179,51 +220,56 @@ namespace BackupWorkstation
         }
 
         // Count all files in specified directories for progress tracking
-        private int CountAllFiles(string userProfile, string[] profileDirs, Dictionary<string, string> appDataDirs)
+        private int CountAllFiles(
+            string userProfile,
+            string[] profileDirs,
+            Dictionary<string, string> appDataDirs,
+            Dictionary<string, string> extraDirs)
         {
             int count = 0;
 
+            // Profile dirs
             foreach (var dir in profileDirs)
             {
                 string source = Path.Combine(userProfile, dir);
-                if (Directory.Exists(source) && !IsReparsePoint(source))
-                {
-                    try
-                    {
-                        count += Directory.GetFiles(source, "*", SearchOption.AllDirectories).Length;
-                    }
-                    catch (Exception ex)
-                    {
-                        Log($"⚠ Skipped '{source}' during file count: {ex.Message}");
-                    }
-                }
-                else if (IsReparsePoint(source))
-                {
-                    Log($"⚠ Skipped reparse point '{source}' during file count.");
-                }
+                count += CountDirFiles(source);
             }
 
+            // AppData dirs
             foreach (var kvp in appDataDirs)
             {
                 string source = Path.Combine(userProfile, kvp.Key);
-                if (Directory.Exists(source) && !IsReparsePoint(source))
-                {
-                    try
-                    {
-                        count += Directory.GetFiles(source, "*", SearchOption.AllDirectories).Length;
-                    }
-                    catch (Exception ex)
-                    {
-                        Log($"⚠ Skipped '{source}' during file count: {ex.Message}");
-                    }
-                }
-                else if (IsReparsePoint(source))
-                {
-                    Log($"⚠ Skipped reparse point '{source}' during file count.");
-                }
+                count += CountDirFiles(source);
+            }
+
+            // Extra absolute dirs
+            foreach (var kvp in extraDirs)
+            {
+                string source = kvp.Key;
+                count += CountDirFiles(source);
             }
 
             return count;
+        }
+
+        private int CountDirFiles(string source)
+        {
+            if (Directory.Exists(source) && !IsReparsePoint(source))
+            {
+                try
+                {
+                    return Directory.GetFiles(source, "*", SearchOption.AllDirectories).Length;
+                }
+                catch (Exception ex)
+                {
+                    Log($"⚠ Skipped '{source}' during file count: {ex.Message}");
+                }
+            }
+            else if (IsReparsePoint(source))
+            {
+                Log($"⚠ Skipped reparse point '{source}' during file count.");
+            }
+            return 0;
         }
 
         // Helper to copy directories if they exist
@@ -322,33 +368,6 @@ namespace BackupWorkstation
             return null;
         }
 
-        // --- Secure password input for console ---
-        private string ReadPassword()
-        {
-            var pass = string.Empty;
-            ConsoleKey key;
-            do
-            {
-                var keyInfo = Console.ReadKey(intercept: true);
-                key = keyInfo.Key;
-
-                if (key == ConsoleKey.Backspace && pass.Length > 0)
-                {
-                    pass = pass.Substring(0, pass.Length - 1);
-                    Console.Write("\b \b"); // erase last char
-                }
-                else if (!char.IsControl(keyInfo.KeyChar))
-                {
-                    pass += keyInfo.KeyChar;
-                    Console.Write("*");
-                }
-            }
-            while (key != ConsoleKey.Enter);
-
-            Console.WriteLine();
-            return pass;
-        }
-
         // Check if a directory is a reparse point (symlink/junction)
         private bool IsReparsePoint(string path)
         {
@@ -360,6 +379,68 @@ namespace BackupWorkstation
             catch
             {
                 return false; // If we can't read attributes, treat it as non-reparse
+            }
+        }
+
+        // Collect technical info for troubleshooting
+        private void CollectTechInfo(string outputPath)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+            using var writer = new StreamWriter(outputPath, append: true);
+
+            writer.WriteLine(DateTime.Now.ToString("F"));
+            writer.WriteLine("-------------------");
+            writer.WriteLine("NETWORK DRIVES");
+            writer.WriteLine("-------------------");
+            writer.WriteLine(RunCommand("net", "use"));
+            writer.WriteLine("-------------------");
+            writer.WriteLine("PRINTERS");
+            writer.WriteLine("-------------------");
+            writer.WriteLine(RunCommand("wmic", "printer list brief"));
+            writer.WriteLine("-------------------");
+            writer.WriteLine("IP AND NETWORK INFORMATION");
+            writer.WriteLine("-------------------");
+            writer.WriteLine(RunCommand("ipconfig", "/all"));
+            writer.WriteLine("-------------------");
+            writer.WriteLine("SHARED RESOURCE INFO");
+            writer.WriteLine("-------------------");
+            writer.WriteLine(RunCommand("net", "share"));
+        }
+
+        // Helper to run a command and capture output
+        private string RunCommand(string fileName, string args)
+        {
+            var psi = new ProcessStartInfo(fileName, args)
+            {
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var proc = Process.Start(psi);
+            return proc?.StandardOutput.ReadToEnd() ?? "";
+        }
+
+        // Terminate known processes that may lock files
+        private void TerminateProcesses()
+        {
+            string[] targets = {
+        "firefox", "chrome", "outlook", "StikyNot",
+        "MicrosoftEdge", "MicrosoftEdgeCP"
+        };
+            foreach (var name in targets)
+            {
+                foreach (var proc in Process.GetProcessesByName(name))
+                {
+                    try
+                    {
+                        proc.Kill();
+                        Log($"🛑 Terminated process: {name}.exe");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"⚠ Failed to terminate {name}.exe: {ex.Message}");
+                    }
+                }
             }
         }
 

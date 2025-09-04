@@ -9,7 +9,7 @@
 		<ApplicationIcon>Assets\AdvTechLogo.ico</ApplicationIcon>
 
 		<AssemblyTitle>Workstation Backup Tool</AssemblyTitle>
-		<FileVersion>3.2.0.0</FileVersion>
+		<FileVersion>3.3.1.0</FileVersion>
 		<Company>Advantage Technologies</Company>
 		<Authors>Dan Damit</Authors>
 		<Description>Lightweight WPF backup utility with live logging</Description>
