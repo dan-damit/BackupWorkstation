@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -43,22 +44,22 @@ namespace BackupWorkstation
             string tempLogPath = Path.Combine(Path.GetTempPath(), "BackupWorkstation_startup_log.txt");
             Logger.Init(tempLogPath);
 
-            // --- Preflight UNC path access check ---
-            if (!TestPathAccess(backupRoot))
+            var normalizedRoot = NormalizePath(backupRoot);
+            var parentPath = GetParentPath(normalizedRoot);
+
+            // Preflight against the parent (since the final folder may not exist yet)
+            if (!TestPathAccess(parentPath))
             {
-                Log($"⚠ Cannot access '{backupRoot}'. Prompting for credentials...");
-                var creds = PromptForCredentials(backupRoot);
+                Log($"⚠ Cannot access '{parentPath}'. Prompting for credentials...");
+                var creds = PromptForCredentials(parentPath);
                 if (creds.HasValue)
                 {
-                    if (!ConnectToShare(backupRoot, creds.Value.user, creds.Value.pass))
+                    if (!ConnectToShare(parentPath, creds.Value.user, creds.Value.pass))
                     {
                         Log("❌ Could not connect to network share with provided credentials. Backup aborted.");
                         return;
                     }
-                    else
-                    {
-                        Log("🔑 Network share connected successfully.");
-                    }
+                    Log("🔑 Network share connected successfully.");
                 }
                 else
                 {
@@ -67,6 +68,11 @@ namespace BackupWorkstation
                 }
             }
 
+            // Ensure the final target directory exists (create if missing; OK if it already exists)
+            if (!EnsureTargetRootReady(normalizedRoot))
+                return;
+
+            // Now that we have a valid target, re-init logger to write there
             string? userProfile = ResolveUserProfilePath(sourceUser);
             if (userProfile == null)
             {
@@ -187,6 +193,47 @@ namespace BackupWorkstation
             }
             catch (UnauthorizedAccessException)
             {
+                return false;
+            }
+        }
+
+        // --- Helpers for UNC path handling ---
+        private static string NormalizePath(string path)
+        {
+            return path.TrimEnd('\\', '/');
+        }
+
+        // Get parent directory of a given path
+        private static string GetParentPath(string path)
+        {
+            var normalized = NormalizePath(path);
+            // Path.GetDirectoryName handles both UNC and local (returns \\Server\Share for \\Server\Share\Folder)
+            return Path.GetDirectoryName(normalized) ?? normalized;
+        }
+
+        // Ensure target root directory exists and is writable
+        private bool EnsureTargetRootReady(string targetRoot)
+        {
+            var normalized = NormalizePath(targetRoot);
+            var parent = GetParentPath(normalized);
+
+            // 1) Ensure we can access the parent (prompt/connect if needed happens in caller)
+            if (!TestPathAccess(parent))
+            {
+                Log($"❌ Cannot access parent directory '{parent}'.");
+                return false;
+            }
+
+            // 2) Create target if missing; no-op if it already exists
+            try
+            {
+                Directory.CreateDirectory(normalized);
+                Log($"📁 Target directory ready: '{normalized}'");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ Failed to create target directory '{normalized}': {ex.Message}");
                 return false;
             }
         }
@@ -396,7 +443,17 @@ namespace BackupWorkstation
             writer.WriteLine("-------------------");
             writer.WriteLine("PRINTERS");
             writer.WriteLine("-------------------");
-            writer.WriteLine(RunCommand("wmic", "printer list brief"));
+            try
+            {
+                writer.WriteLine(RunCommand(
+                    "powershell",
+                    "-NoProfile -ExecutionPolicy Bypass -Command \"Get-Printer | Format-Table -AutoSize\""
+                ));
+            }
+            catch (Exception ex)
+            {
+                Log($"⚠ Failed to collect printer info: {ex.Message}");
+            }
             writer.WriteLine("-------------------");
             writer.WriteLine("IP AND NETWORK INFORMATION");
             writer.WriteLine("-------------------");
@@ -410,14 +467,27 @@ namespace BackupWorkstation
         // Helper to run a command and capture output
         private string RunCommand(string fileName, string args)
         {
-            var psi = new ProcessStartInfo(fileName, args)
+            try
             {
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var proc = Process.Start(psi);
-            return proc?.StandardOutput.ReadToEnd() ?? "";
+                var psi = new ProcessStartInfo(fileName, args)
+                {
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                return proc?.StandardOutput.ReadToEnd() ?? "";
+            }
+            catch (Win32Exception ex) when (ex.NativeErrorCode == 2)
+            {
+                Log($"⚠ Command '{fileName}' not found on this system.");
+                return "";
+            }
+            catch (Exception ex)
+            {
+                Log($"⚠ Failed to run '{fileName} {args}': {ex.Message}");
+                return "";
+            }
         }
 
         // Terminate known processes that may lock files
