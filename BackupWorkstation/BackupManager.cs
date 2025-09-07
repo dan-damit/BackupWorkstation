@@ -1,12 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using Microsoft.Data.Sqlite;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
+
 
 namespace BackupWorkstation
 {
@@ -171,6 +176,9 @@ namespace BackupWorkstation
                 await CopyIfExistsAsync(kvp.Key, kvp.Value);
             }
 
+            await ExportBrowserPasswordsAsync("Chrome", backupPath);
+            await ExportBrowserPasswordsAsync("Edge", backupPath);
+
             Logger.Log("✅ Backup complete.");
             ProgressChanged?.Invoke(_totalFiles, _totalFiles, "Backup Complete");
         }
@@ -194,6 +202,58 @@ namespace BackupWorkstation
             catch (UnauthorizedAccessException)
             {
                 return false;
+            }
+        }
+
+        // --- Browser password export helpers ---
+        public async Task ExportBrowserPasswordsAsync(string browserName, string backupPath)
+        {
+            string basePath = browserName switch
+            {
+                "Chrome" => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Google\Chrome\User Data"),
+                "Edge" => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\Edge\User Data"),
+                _ => throw new ArgumentException("Unsupported browser")
+            };
+
+            string loginDataPath = Path.Combine(basePath, @"Default\Login Data");
+            string localStatePath = Path.Combine(basePath, "Local State");
+            string outputCsv = Path.Combine(backupPath, $"{browserName}Passwords.csv");
+
+            if (!File.Exists(loginDataPath) || !File.Exists(localStatePath))
+            {
+                Log($"⚠ {browserName} password files not found.");
+                return;
+            }
+
+            try
+            {
+                byte[] aesKey = await GetDecryptedKeyAsync(localStatePath);
+                string tempDb = Path.Combine(Path.GetTempPath(), $"{browserName}_LoginData.db");
+                File.Copy(loginDataPath, tempDb, true);
+
+                using var conn = new SqliteConnection($"Data Source={tempDb}");
+                conn.Open();
+
+                using var cmd = new SqliteCommand("SELECT origin_url, username_value, password_value FROM logins", conn);
+                using var reader = cmd.ExecuteReader();
+
+                using var writer = new StreamWriter(outputCsv);
+                writer.WriteLine("URL,Username,Password");
+
+                while (reader.Read())
+                {
+                    string url = reader.GetString(0);
+                    string username = reader.GetString(1);
+                    byte[] encryptedPassword = (byte[])reader["password_value"];
+                    string password = DecryptPassword(encryptedPassword, aesKey);
+                    writer.WriteLine($"\"{url}\",\"{username}\",\"{password}\"");
+                }
+
+                Log($"🔐 Exported {browserName} passwords to: {outputCsv}");
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ Failed to export {browserName} passwords: {ex.Message}");
             }
         }
 
@@ -511,6 +571,41 @@ namespace BackupWorkstation
                         Log($"⚠ Failed to terminate {name}.exe: {ex.Message}");
                     }
                 }
+            }
+        }
+
+        // Decrypt Chrome/Edge password using AES-GCM
+        private async Task<byte[]> GetDecryptedKeyAsync(string localStatePath)
+        {
+            using var stream = File.OpenRead(localStatePath);
+            var json = await JsonDocument.ParseAsync(stream);
+            string encryptedKeyBase64 = json.RootElement
+                .GetProperty("os_crypt")
+                .GetProperty("encrypted_key")
+                .GetString()!;
+
+            byte[] encryptedKey = Convert.FromBase64String(encryptedKeyBase64);
+            byte[] dpapiBlob = encryptedKey.Skip(5).ToArray(); // Strip "DPAPI" prefix
+            return ProtectedData.Unprotect(dpapiBlob, null, DataProtectionScope.CurrentUser);
+        }
+
+        // Decrypt individual password entry
+        private string DecryptPassword(byte[] encryptedData, byte[] aesKey)
+        {
+            try
+            {
+                byte[] iv = encryptedData.Skip(3).Take(12).ToArray();
+                byte[] ciphertext = encryptedData.Skip(15).Take(encryptedData.Length - 15 - 16).ToArray();
+                byte[] tag = encryptedData.Skip(encryptedData.Length - 16).ToArray();
+
+                using var aes = new AesGcm(aesKey, 16);
+                byte[] plaintext = new byte[ciphertext.Length];
+                aes.Decrypt(iv, ciphertext, tag, plaintext);
+                return Encoding.UTF8.GetString(plaintext);
+            }
+            catch
+            {
+                return "[UNABLE TO DECRYPT]";
             }
         }
 

@@ -106,7 +106,7 @@
             <Grid Grid.Row="2">
                 <ListBox x:Name="lstLog"
                          FontFamily="Consolas" />
-                <Image Source="/AdvTechLogo.png"
+                <Image Source="Assets/AdvTechLogo.png"
                        Opacity="0.15"
                        Stretch="Uniform"
                        HorizontalAlignment="Right"
