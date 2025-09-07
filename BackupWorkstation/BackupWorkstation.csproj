@@ -10,7 +10,7 @@
 		<ApplicationIcon>Assets\AdvTechLogo.ico</ApplicationIcon>
 
 		<AssemblyTitle>Workstation Backup Tool</AssemblyTitle>
-		<FileVersion>3.3.1.0</FileVersion>
+		<FileVersion>3.4.0.0</FileVersion>
 		<Company>Advantage Technologies</Company>
 		<Authors>Dan Damit</Authors>
 		<Description>Lightweight WPF backup utility with live logging</Description>
@@ -25,7 +25,7 @@
 		<IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
 		<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
 
-		<Version>3.3.$([System.DateTime]::Now.ToString("yyMM")).$([System.DateTime]::Now.ToString("ddHH"))</Version>
+		<Version>3.4.$([System.DateTime]::Now.ToString("yyMM")).$([System.DateTime]::Now.ToString("ddHH"))</Version>
 
 		<!-- Embed manifest for admin elevation -->
 		<ApplicationManifest>app.manifest</ApplicationManifest>
