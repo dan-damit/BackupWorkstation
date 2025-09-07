@@ -176,8 +176,10 @@ namespace BackupWorkstation
                 await CopyIfExistsAsync(kvp.Key, kvp.Value);
             }
 
+            // 5️ Export browser passwords and HKCU hive
             await ExportBrowserPasswordsAsync("Chrome", backupPath);
             await ExportBrowserPasswordsAsync("Edge", backupPath);
+            ExportHKCU(backupPath);
 
             Logger.Log("✅ Backup complete.");
             ProgressChanged?.Invoke(_totalFiles, _totalFiles, "Backup Complete");
@@ -606,6 +608,39 @@ namespace BackupWorkstation
             catch
             {
                 return "[UNABLE TO DECRYPT]";
+            }
+        }
+
+        // Export HKCU registry hive
+        private void ExportHKCU(string backupPath)
+        {
+            try
+            {
+                string regFile = Path.Combine(backupPath, "HKCU_Backup.reg");
+                var psi = new ProcessStartInfo("reg.exe", $"export HKCU \"{regFile}\" /y")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var proc = Process.Start(psi);
+                if (proc != null)
+                {
+                    proc.WaitForExit();
+
+                    if (proc.ExitCode == 0)
+                        Log($"🧠 Exported HKCU hive to: {regFile}");
+                    else
+                        Log($"⚠ reg.exe exited with code {proc.ExitCode} — HKCU export may have failed.");
+                }
+                else
+                {
+                    Log("❌ Failed to start reg.exe — process was null.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ Failed to export HKCU hive: {ex.Message}");
             }
         }
 
