@@ -1,7 +1,8 @@
-﻿using System;
+﻿using Microsoft.Data.Sqlite;
+using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using Microsoft.Data.Sqlite;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -611,36 +612,71 @@ namespace BackupWorkstation
             }
         }
 
-        // Export HKCU registry hive
+        // Export selected HKCU registry keys to .reg files
         private void ExportHKCU(string backupPath)
         {
-            try
+            var targets = new Dictionary<string, string>
+             {
+                 { "Console", "HKCU\\Console" },
+                 { "File Explorer", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer" },
+                 { "Printers", "HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\PrinterPorts" },
+                 { "NetworkDrives", "HKCU\\Network" },
+                 { "MountedDevices", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MountPoints2" },
+                 { "UserAssist", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist" },
+                 { "RunOnce", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce" },
+                 { "Run", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" },
+                 { "OutlookProfiles", "HKCU\\Software\\Microsoft\\Office" },
+                 { "StickyNotes", "HKCU\\Software\\Microsoft\\Sticky Notes" },
+                 { "FileExts", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts" },
+                 { "RecentDocs", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RecentDocs" },
+                 { "Theme", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes" },
+                 { "AppEvents", "HKCU\\AppEvents" },
+                 { "Colors", "HKCU\\Software\\Microsoft\\Windows\\DWM" },
+                 { "KeyboardLayout", "HKCU\\Keyboard Layout" },
+                 { "Environment", "HKCU\\Environment" },
+                 { "Taskbar", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Taskband" },
+                 { "Edge", "HKCU\\Software\\Microsoft\\Edge" },
+                 { "Chrome", "HKCU\\Software\\Google\\Chrome" },
+                 { "RDP", "HKCU\\Software\\Microsoft\\Terminal Server Client" }
+             };
+
+            foreach (var kvp in targets)
             {
-                string regFile = Path.Combine(backupPath, "HKCU_Backup.reg");
-                var psi = new ProcessStartInfo("reg.exe", $"export HKCU \"{regFile}\" /y")
+                try
                 {
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
+                    string subKeyPath = kvp.Value.Substring("HKCU\\".Length);
+                    using var key = Registry.CurrentUser.OpenSubKey(subKeyPath);
+                    if (key == null || (key.GetValueNames().Length == 0 && key.GetSubKeyNames().Length == 0))
+                    {
+                        Log($"⚠ Skipping {kvp.Key} — key not found or empty: {kvp.Value}");
+                        continue;
+                    }
 
-                using var proc = Process.Start(psi);
-                if (proc != null)
-                {
-                    proc.WaitForExit();
+                    string regFile = Path.Combine(backupPath, $"{kvp.Key}.reg");
+                    var psi = new ProcessStartInfo("reg.exe", $"export \"{kvp.Value}\" \"{regFile}\" /y")
+                    {
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
 
-                    if (proc.ExitCode == 0)
-                        Log($"🧠 Exported HKCU hive to: {regFile}");
+                    using var proc = Process.Start(psi);
+                    if (proc != null)
+                    {
+                        proc.WaitForExit();
+                        if (proc.ExitCode == 0)
+                            Log($"✅ Exported {kvp.Key} to: {regFile}");
+                        else
+                            Log($"⚠ reg.exe exited with code {proc.ExitCode} — {kvp.Key} export may have failed.");
+                    }
                     else
-                        Log($"⚠ reg.exe exited with code {proc.ExitCode} — HKCU export may have failed.");
+                    {
+                        Log($"❌ Failed to start reg.exe for {kvp.Key} — process was null.");
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    Log("❌ Failed to start reg.exe — process was null.");
+                    Log($"❌ Exception while exporting {kvp.Key}: {ex.Message}");
                 }
-            }
-            catch (Exception ex)
-            {
-                Log($"❌ Failed to export HKCU hive: {ex.Message}");
             }
         }
 
