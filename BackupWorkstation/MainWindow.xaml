@@ -8,92 +8,97 @@
         AllowsTransparency="False"
         Background="{StaticResource WindowBackgroundBrush}">
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <!-- Title bar -->
-            <RowDefinition Height="*" />
-            <!-- Content -->
-        </Grid.RowDefinitions>
-
-        <!-- Custom title bar -->
-        <Border Background="{StaticResource AccentBrush}"
-                Height="32"
-                Grid.Row="0">
-            <DockPanel LastChildFill="True"
-                       MouseDown="TitleBar_MouseDown">
-                <TextBlock Text="Workstation Backup Tool"
-                           Foreground="White"
-                           VerticalAlignment="Center"
-                           Margin="10,0,0,0"
-                           FontWeight="Bold" />
-                <Button Content="X"
-                        Width="32"
-                        Height="32"
-                        Background="Transparent"
-                        Foreground="White"
-                        BorderThickness="0"
-                        HorizontalAlignment="Right"
-                        Click="Close_Click" />
-            </DockPanel>
-        </Border>
-
-        <!-- Main content -->
-        <Grid Grid.Row="1"
-              Margin="10">
+    <!-- Outer border for the whole window -->
+    <Border BorderBrush="{StaticResource ControlBorderBrush}"
+            BorderThickness="2"
+            CornerRadius="6">
+        <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
+                <!-- Title bar -->
                 <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
+                <!-- Content -->
             </Grid.RowDefinitions>
 
-            <!-- Input Fields -->
-            <StackPanel Orientation="Horizontal"
-                        Margin="0,0,0,5">
-                <TextBlock Text="Backup Destination:"
-                           VerticalAlignment="Center"
-                           Foreground="{StaticResource TextBrush}"
-                           Margin="0,0,5,0" />
-                <TextBox x:Name="txtBackupPath"
-                         Width="350"
-                         Margin="0,0,5,0" />
-                <Button Content="Browse..."
-                        Width="75"
-                        Click="Browse_Click" />
-            </StackPanel>
+            <!-- Custom title bar -->
+            <Border Background="{StaticResource AccentBrush}"
+                    Height="32"
+                    Grid.Row="0">
+                <DockPanel LastChildFill="True"
+                           MouseDown="TitleBar_MouseDown">
+                    <TextBlock Text="Workstation Backup Tool"
+                               Foreground="White"
+                               VerticalAlignment="Center"
+                               Margin="10,0,0,0"
+                               FontWeight="Bold" />
+                    <Button Content="X"
+                            Width="32"
+                            Height="32"
+                            Background="Transparent"
+                            Foreground="White"
+                            BorderThickness="0"
+                            HorizontalAlignment="Right"
+                            Click="Close_Click" />
+                </DockPanel>
+            </Border>
 
-            <StackPanel Orientation="Horizontal"
-                        Grid.Row="1"
-                        Margin="0,0,0,5">
-                <TextBlock Text="Source Username:"
-                           VerticalAlignment="Center"
-                           Foreground="{StaticResource TextBrush}"
-                           Margin="0,0,15,0" />
-                <TextBox x:Name="txtUsername"
-                         Width="350" />
-            </StackPanel>
+            <!-- Main content -->
+            <Grid Grid.Row="1"
+                  Margin="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-            <!-- Live Log with watermark overlay -->
-            <Grid Grid.Row="2">
-                <ListBox x:Name="lstLog"
-                         FontFamily="Consolas"
-                         Background="{StaticResource ControlBackgroundBrush}"
-                         Foreground="{StaticResource TextBrush}" />
+                <!-- Input Fields -->
+                <StackPanel Orientation="Horizontal"
+                            Margin="0,0,0,5">
+                    <TextBlock Text="Backup Destination:"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource TextBrush}"
+                               Margin="0,0,5,0" />
+                    <TextBox x:Name="txtBackupPath"
+                             Width="350"
+                             Margin="0,0,5,0" />
+                    <Button Content="Browse..."
+                            Width="75"
+                            Click="Browse_Click" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal"
+                            Grid.Row="1"
+                            Margin="0,0,0,5">
+                    <TextBlock Text="Source Username:"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource TextBrush}"
+                               Margin="0,0,15,0" />
+                    <TextBox x:Name="txtUsername"
+                             Width="350" />
+                </StackPanel>
+
+                <!-- Live Log with watermark overlay -->
+                <Grid Grid.Row="2">
+                    <ListBox x:Name="lstLog"
+                             FontFamily="Consolas"
+                             Background="{StaticResource ControlBackgroundBrush}"
+                             Foreground="{StaticResource TextBrush}" />
+                </Grid>
+
+                <!-- Progress + Start -->
+                <StackPanel Orientation="Horizontal"
+                            Grid.Row="3"
+                            Margin="0,5,0,0">
+                    <ProgressBar x:Name="progressBar"
+                                 Width="400"
+                                 Height="20"
+                                 Margin="0,0,25,0" />
+                    <Button Content="Start Backup"
+                            Width="120"
+                            Click="StartBackup_Click" />
+                </StackPanel>
             </Grid>
-
-            <!-- Progress + Start -->
-            <StackPanel Orientation="Horizontal"
-                        Grid.Row="3"
-                        Margin="0,5,0,0">
-                <ProgressBar x:Name="progressBar"
-                             Width="400"
-                             Height="20"
-                             Margin="0,0,25,0" />
-                <Button Content="Start Backup"
-                        Width="120"
-                        Click="StartBackup_Click" />
-            </StackPanel>
         </Grid>
-    </Grid>
+    </Border>
 </Window>
