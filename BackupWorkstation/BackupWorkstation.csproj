@@ -7,7 +7,7 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<UseWPF>true</UseWPF>
-		<ApplicationIcon>Assets\AdvTechLogo.ico</ApplicationIcon>
+		<ApplicationIcon>Assets\WSSetupIcon.ico</ApplicationIcon>
 
 		<AssemblyTitle>Workstation Backup Tool</AssemblyTitle>
 		<FileVersion>3.4.0.0</FileVersion>
