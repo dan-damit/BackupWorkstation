@@ -6,37 +6,7 @@
         Width="600"
         WindowStyle="None"
         AllowsTransparency="False"
-        Background="White">
-
-    <Window.Resources>
-        <!-- Global button style -->
-        <Style TargetType="Button">
-            <Setter Property="Background"
-                    Value="CornflowerBlue" />
-            <Setter Property="Foreground"
-                    Value="White" />
-            <Setter Property="Padding"
-                    Value="6,3" />
-            <Setter Property="FontWeight"
-                    Value="Bold" />
-            <Setter Property="BorderThickness"
-                    Value="0" />
-            <Setter Property="Cursor"
-                    Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="8"
-                                SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center" />
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
+        Background="{StaticResource WindowBackgroundBrush}">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -47,7 +17,7 @@
         </Grid.RowDefinitions>
 
         <!-- Custom title bar -->
-        <Border Background="CornflowerBlue"
+        <Border Background="{StaticResource AccentBrush}"
                 Height="32"
                 Grid.Row="0">
             <DockPanel LastChildFill="True"
@@ -83,6 +53,7 @@
                         Margin="0,0,0,5">
                 <TextBlock Text="Backup Destination:"
                            VerticalAlignment="Center"
+                           Foreground="{StaticResource TextBrush}"
                            Margin="0,0,5,0" />
                 <TextBox x:Name="txtBackupPath"
                          Width="350"
@@ -97,6 +68,7 @@
                         Margin="0,0,0,5">
                 <TextBlock Text="Source Username:"
                            VerticalAlignment="Center"
+                           Foreground="{StaticResource TextBrush}"
                            Margin="0,0,15,0" />
                 <TextBox x:Name="txtUsername"
                          Width="350" />
@@ -105,17 +77,9 @@
             <!-- Live Log with watermark overlay -->
             <Grid Grid.Row="2">
                 <ListBox x:Name="lstLog"
-                         FontFamily="Consolas" />
-                <Image Source="Assets/AdvTechLogo.png"
-                       Opacity="0.15"
-                       Stretch="Uniform"
-                       HorizontalAlignment="Right"
-                       VerticalAlignment="Bottom"
-                       Margin="5"
-                       IsHitTestVisible="False"
-                       Width="{Binding ActualWidth, ElementName=lstLog}"
-                       Height="{Binding ActualHeight, ElementName=lstLog}"
-                       Panel.ZIndex="1" />
+                         FontFamily="Consolas"
+                         Background="{StaticResource ControlBackgroundBrush}"
+                         Foreground="{StaticResource TextBrush}" />
             </Grid>
 
             <!-- Progress + Start -->

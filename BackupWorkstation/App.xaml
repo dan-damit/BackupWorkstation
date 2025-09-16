@@ -3,7 +3,72 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:BackupWorkstation"
              StartupUri="MainWindow.xaml">
+    
     <Application.Resources>
-         
+        <!-- Base Colors -->
+        <Color x:Key="BaseDarkColor">#FF1C1C1C</Color>
+        <!-- Deep charcoal background -->
+        <Color x:Key="AccentSteelColor">#FF4682B4</Color>
+        <!-- Steel Blue -->
+        <Color x:Key="ControlBackgroundColor">#FF2A2A2A</Color>
+        <Color x:Key="ControlBorderColor">#FF3A3A3A</Color>
+        <Color x:Key="TextColor">#FFE0E0E0</Color>
+
+        <!-- Brushes -->
+        <SolidColorBrush x:Key="WindowBackgroundBrush"
+                         Color="{StaticResource BaseDarkColor}" />
+        <SolidColorBrush x:Key="AccentBrush"
+                         Color="{StaticResource AccentSteelColor}" />
+        <SolidColorBrush x:Key="ControlBackgroundBrush"
+                         Color="{StaticResource ControlBackgroundColor}" />
+        <SolidColorBrush x:Key="ControlBorderBrush"
+                         Color="{StaticResource ControlBorderColor}" />
+        <SolidColorBrush x:Key="TextBrush"
+                         Color="{StaticResource TextColor}" />
+
+        <!-- Button Style -->
+        <Style TargetType="Button">
+            <Setter Property="Background"
+                    Value="{StaticResource AccentBrush}" />
+            <Setter Property="Foreground"
+                    Value="White" />
+            <Setter Property="FontWeight"
+                    Value="SemiBold" />
+            <Setter Property="Padding"
+                    Value="6,2" />
+            <Setter Property="BorderThickness"
+                    Value="0" />
+            <Setter Property="Cursor"
+                    Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- TextBox Style -->
+        <Style TargetType="TextBox">
+            <Setter Property="Background"
+                    Value="{StaticResource ControlBackgroundBrush}" />
+            <Setter Property="Foreground"
+                    Value="{StaticResource TextBrush}" />
+            <Setter Property="BorderBrush"
+                    Value="{StaticResource ControlBorderBrush}" />
+            <Setter Property="BorderThickness"
+                    Value="1" />
+            <Setter Property="Padding"
+                    Value="4" />
+            <Setter Property="FontFamily"
+                    Value="Consolas" />
+        </Style>
     </Application.Resources>
 </Application>
