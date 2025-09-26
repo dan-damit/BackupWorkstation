@@ -823,29 +823,33 @@ namespace BackupWorkstation
         private void ExportHKCU(string backupPath)
         {
             var targets = new Dictionary<string, string>
-             {
-                 { "Console", "HKCU\\Console" },
-                 { "File Explorer", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer" },
-                 { "Printers", "HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\PrinterPorts" },
-                 { "NetworkDrives", "HKCU\\Network" },
-                 { "MountedDevices", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MountPoints2" },
-                 { "UserAssist", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist" },
-                 { "RunOnce", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce" },
-                 { "Run", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" },
-                 { "OutlookProfiles", "HKCU\\Software\\Microsoft\\Office" },
-                 { "StickyNotes", "HKCU\\Software\\Microsoft\\Sticky Notes" },
-                 { "FileExts", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts" },
-                 { "RecentDocs", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RecentDocs" },
-                 { "Theme", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes" },
-                 { "AppEvents", "HKCU\\AppEvents" },
-                 { "Colors", "HKCU\\Software\\Microsoft\\Windows\\DWM" },
-                 { "KeyboardLayout", "HKCU\\Keyboard Layout" },
-                 { "Environment", "HKCU\\Environment" },
-                 { "Taskbar", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Taskband" },
-                 { "Edge", "HKCU\\Software\\Microsoft\\Edge" },
-                 { "Chrome", "HKCU\\Software\\Google\\Chrome" },
-                 { "RDP", "HKCU\\Software\\Microsoft\\Terminal Server Client" }
-             };
+            {
+                { "Console", "HKCU\\Console" },
+                { "File Explorer", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer" },
+                { "Printers", "HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\PrinterPorts" },
+                { "NetworkDrives", "HKCU\\Network" },
+                { "MountedDevices", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\MountPoints2" },
+                { "UserAssist", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\UserAssist" },
+                { "RunOnce", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce" },
+                { "Run", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" },
+                { "OutlookProfiles", "HKCU\\Software\\Microsoft\\Office" },
+                { "StickyNotes", "HKCU\\Software\\Microsoft\\Sticky Notes" },
+                { "FileExts", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts" },
+                { "RecentDocs", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RecentDocs" },
+                { "Theme", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes" },
+                { "AppEvents", "HKCU\\AppEvents" },
+                { "Colors", "HKCU\\Software\\Microsoft\\Windows\\DWM" },
+                { "KeyboardLayout", "HKCU\\Keyboard Layout" },
+                { "Environment", "HKCU\\Environment" },
+                { "Taskbar", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Taskband" },
+                { "Edge", "HKCU\\Software\\Microsoft\\Edge" },
+                { "Chrome", "HKCU\\Software\\Google\\Chrome" },
+                { "RDP", "HKCU\\Software\\Microsoft\\Terminal Server Client" }
+            };
+
+            // ensure RegKeys folder exists
+            string regFolder = Path.Combine(backupPath, "RegKeys");
+            Directory.CreateDirectory(regFolder);
 
             foreach (var kvp in targets)
             {
@@ -859,7 +863,9 @@ namespace BackupWorkstation
                         continue;
                     }
 
-                    string regFile = Path.Combine(backupPath, $"{kvp.Key}.reg");
+                    // sanitize filename to avoid characters invalid for file names
+                    string safeName = string.Join("_", kvp.Key.Split(Path.GetInvalidFileNameChars()));
+                    string regFile = Path.Combine(regFolder, $"{safeName}.reg");
                     var psi = new ProcessStartInfo("reg.exe", $"export \"{kvp.Value}\" \"{regFile}\" /y")
                     {
                         UseShellExecute = false,
