@@ -224,40 +224,80 @@ namespace BackupWorkstation
 
             if (!File.Exists(loginDataPath) || !File.Exists(localStatePath))
             {
-                Log($"⚠ {browserName} password files not found.");
+                Logger.Log($"⚠ {browserName} password files not found at expected paths.");
                 return;
             }
 
+            string tempDb = Path.Combine(Path.GetTempPath(), $"{browserName}_LoginData_{Guid.NewGuid():N}.db");
             try
             {
-                byte[] aesKey = await GetDecryptedKeyAsync(localStatePath);
-                string tempDb = Path.Combine(Path.GetTempPath(), $"{browserName}_LoginData.db");
-                File.Copy(loginDataPath, tempDb, true);
+                byte[]? aesKey = await GetDecryptedKeyAsync(localStatePath);
+                Logger.Log($"Export: obtained AES key len={(aesKey?.Length ?? 0)}");
 
-                using var conn = new SqliteConnection($"Data Source={tempDb}");
+                if (aesKey == null || (aesKey.Length != 16 && aesKey.Length != 24 && aesKey.Length != 32))
+                {
+                    Logger.Log($"❌ {browserName} AES key invalid length: {(aesKey?.Length ?? 0)}");
+                    return;
+                }
+
+                File.Copy(loginDataPath, tempDb, true);
+                if (!File.Exists(tempDb))
+                {
+                    Logger.Log($"❌ Failed to copy Login Data to temp DB: {tempDb}");
+                    return;
+                }
+
+                Logger.Log($"Export: opened temp DB at {tempDb}");
+                using var conn = new SqliteConnection($"Data Source={tempDb};Mode=ReadOnly;Cache=Shared");
                 conn.Open();
 
                 using var cmd = new SqliteCommand("SELECT origin_url, username_value, password_value FROM logins", conn);
                 using var reader = cmd.ExecuteReader();
 
-                using var writer = new StreamWriter(outputCsv);
+                using var writer = new StreamWriter(outputCsv, false, Encoding.UTF8);
                 writer.WriteLine("URL,Username,Password");
 
+                int exported = 0;
                 while (reader.Read())
                 {
-                    string url = reader.GetString(0);
-                    string username = reader.GetString(1);
-                    byte[] encryptedPassword = (byte[])reader["password_value"];
-                    string password = DecryptPassword(encryptedPassword, aesKey);
-                    writer.WriteLine($"\"{url}\",\"{username}\",\"{password}\"");
+                    string url = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
+                    string username = reader.IsDBNull(1) ? string.Empty : reader.GetString(1);
+                    byte[] encryptedPassword = reader.IsDBNull(2) ? Array.Empty<byte>() : (byte[])reader["password_value"];
+
+                    string password = DecryptPasswordWithDiagnostics(encryptedPassword, aesKey);
+                    writer.WriteLine($"{CsvEscape(url)},{CsvEscape(username)},{CsvEscape(password)}");
+                    exported++;
                 }
 
-                Log($"🔐 Exported {browserName} passwords to: {outputCsv}");
+                writer.Flush();
+                Logger.Log($"🔐 Exported {exported} {browserName} password entries to: {outputCsv}");
             }
             catch (Exception ex)
             {
-                Log($"❌ Failed to export {browserName} passwords: {ex.Message}");
+                Logger.Log($"❌ Failed to export {browserName} passwords: {ex.Message}");
             }
+            finally
+            {
+                try
+                {
+                    if (File.Exists(tempDb))
+                    {
+                        File.Delete(tempDb);
+                        Logger.Log($"Cleanup: deleted temp DB {tempDb}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log($"Cleanup: failed to delete temp DB {tempDb}: {ex.Message}");
+                }
+            }
+        }
+
+        private static string CsvEscape(string s)
+        {
+            if (s == null) return "\"\"";
+            string escaped = s.Replace("\"", "\"\"");
+            return $"\"{escaped}\"";
         }
 
         // --- Helpers for UNC path handling ---
@@ -578,66 +618,206 @@ namespace BackupWorkstation
         }
 
         // Decrypt Chrome/Edge password using AES-GCM
-        private async Task<byte[]> GetDecryptedKeyAsync(string localStatePath)
+        private async Task<byte[]?> GetDecryptedKeyAsync(string localStatePath)
         {
-            using var stream = File.OpenRead(localStatePath);
-            var json = await JsonDocument.ParseAsync(stream);
-            string encryptedKeyBase64 = json.RootElement
-                .GetProperty("os_crypt")
-                .GetProperty("encrypted_key")
-                .GetString()!;
-
-            byte[] encryptedKey = Convert.FromBase64String(encryptedKeyBase64);
-            byte[] dpapiBlob = encryptedKey.Skip(5).ToArray(); // Strip "DPAPI" prefix
-            return ProtectedData.Unprotect(dpapiBlob, null, DataProtectionScope.CurrentUser);
-        }
-
-        // Decrypt individual password entry
-        private string DecryptPassword(byte[] encryptedData, byte[] aesKey)
-        {
-            const int PrefixLen = 3;    // "v10"
-            const int IvLen = 12;       // 96-bit IV
-            const int TagLen = 16;      // 128-bit tag
-
-            if (encryptedData == null || encryptedData.Length < PrefixLen + IvLen + TagLen)
-                return "[UNABLE TO DECRYPT: blob too small]";
-
-            if (aesKey == null || (aesKey.Length != 16 && aesKey.Length != 24 && aesKey.Length != 32))
-                return "[UNABLE TO DECRYPT: invalid aes key length]";
-
             try
             {
-                var iv = new byte[IvLen];
-                Buffer.BlockCopy(encryptedData, PrefixLen, iv, 0, IvLen);
+                using var stream = File.OpenRead(localStatePath);
+                using var doc = await JsonDocument.ParseAsync(stream);
 
-                int cipherStart = PrefixLen + IvLen;
-                int cipherLen = encryptedData.Length - cipherStart - TagLen;
-                if (cipherLen <= 0)
-                    return "[UNABLE TO DECRYPT: no ciphertext]";
+                if (!doc.RootElement.TryGetProperty("os_crypt", out var osCrypt) ||
+                    !osCrypt.TryGetProperty("encrypted_key", out var encryptedKeyElem))
+                {
+                    Logger.Log($"GetDecryptedKey: missing os_crypt/encrypted_key in {localStatePath}");
+                    return null;
+                }
 
-                var ciphertext = new byte[cipherLen];
-                Buffer.BlockCopy(encryptedData, cipherStart, ciphertext, 0, cipherLen);
+                string encryptedKeyBase64 = encryptedKeyElem.GetString() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(encryptedKeyBase64))
+                {
+                    Logger.Log("GetDecryptedKey: encrypted_key was empty");
+                    return null;
+                }
 
-                var tag = new byte[TagLen];
-                Buffer.BlockCopy(encryptedData, encryptedData.Length - TagLen, tag, 0, TagLen);
+                byte[] encryptedKey;
+                try
+                {
+                    encryptedKey = Convert.FromBase64String(encryptedKeyBase64);
+                }
+                catch (FormatException fex)
+                {
+                    Logger.Log($"GetDecryptedKey: base64 decode failed: {fex.Message}");
+                    return null;
+                }
 
-                var plaintext = new byte[ciphertext.Length];
+                const string dpapiPrefix = "DPAPI";
+                var prefixBytes = Encoding.ASCII.GetBytes(dpapiPrefix);
+                if (encryptedKey.Length <= prefixBytes.Length ||
+                    !encryptedKey.Take(prefixBytes.Length).SequenceEqual(prefixBytes))
+                {
+                    Logger.Log("GetDecryptedKey: encrypted_key does not start with expected DPAPI prefix");
+                    return null;
+                }
 
-                // Explicit tag size constructor to silence SYSLIB0053 warning
-                using var aes = new AesGcm(aesKey, TagLen);
-                aes.Decrypt(iv, ciphertext, tag, plaintext);
+                byte[] dpapiBlob = encryptedKey.Skip(prefixBytes.Length).ToArray();
+                Logger.Log($"GetDecryptedKey: dpapi blob len={dpapiBlob.Length}");
 
-                return Encoding.UTF8.GetString(plaintext);
-            }
-            catch (CryptographicException cex)
-            {
-                return $"[UNABLE TO DECRYPT: authentication failed {cex.Message}]";
+                byte[]? unprotected;
+                try
+                {
+                    unprotected = ProtectedData.Unprotect(dpapiBlob, null, DataProtectionScope.CurrentUser);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log($"GetDecryptedKey: ProtectedData.Unprotect failed: {ex.Message}");
+                    return null;
+                }
+                finally
+                {
+                    Array.Clear(dpapiBlob, 0, dpapiBlob.Length);
+                }
+
+                if (unprotected == null || (unprotected.Length != 16 && unprotected.Length != 24 && unprotected.Length != 32))
+                {
+                    Logger.Log($"GetDecryptedKey: unprotected key invalid length={(unprotected?.Length ?? 0)}");
+                    if (unprotected != null) Array.Clear(unprotected, 0, unprotected.Length);
+                    return null;
+                }
+
+                string sample = BitConverter.ToString(unprotected, 0, Math.Min(8, unprotected.Length)).Replace("-", "");
+                Logger.Log($"GetDecryptedKey: success key len={unprotected.Length} sample={sample}");
+                return unprotected;
             }
             catch (Exception ex)
             {
-                return $"[UNABLE TO DECRYPT: {ex.Message}]";
+                Logger.Log($"GetDecryptedKey: unexpected error: {ex.Message}");
+                return null;
             }
         }
+
+        // Decrypt individual password entry
+        private string DecryptPasswordWithDiagnostics(byte[] encryptedData, byte[] aesKey)
+        {
+            const int PrefixLen = 3;    // typical "v10"
+            const int IvLen = 12;       // 96-bit IV
+            const int TagLen = 16;      // 128-bit tag
+
+            if (encryptedData == null)
+            {
+                Logger.Log("Decrypt: encryptedData is null.");
+                return "[UNABLE TO DECRYPT: null blob]";
+            }
+
+            Logger.Log($"Decrypt: blob len={encryptedData.Length}");
+            LogHexSample("blob-start", encryptedData, 0, Math.Min(8, encryptedData.Length));
+            LogHexSample("blob-end", encryptedData, Math.Max(0, encryptedData.Length - TagLen), Math.Min(TagLen, encryptedData.Length));
+
+            if (encryptedData.Length < PrefixLen + IvLen + TagLen)
+            {
+                Logger.Log("Decrypt: blob too small for expected layout.");
+                return "[UNABLE TO DECRYPT: blob too small]";
+            }
+
+            // prefix check (print as ascii if printable)
+            bool prefixPrintable = IsAsciiPrintable(encryptedData[0]) && IsAsciiPrintable(encryptedData[1]) && IsAsciiPrintable(encryptedData[2]);
+            if (prefixPrintable)
+            {
+                string prefix = $"{(char)encryptedData[0]}{(char)encryptedData[1]}{(char)encryptedData[2]}";
+                Logger.Log($"Decrypt: prefix='{prefix}'");
+            }
+            else
+            {
+                Logger.Log($"Decrypt: prefix bytes {encryptedData[0]:x2} {encryptedData[1]:x2} {encryptedData[2]:x2}");
+            }
+
+            if (aesKey == null)
+            {
+                Logger.Log("Decrypt: AES key is null.");
+                return "[UNABLE TO DECRYPT: null aes key]";
+            }
+
+            Logger.Log($"Decrypt: aesKey len={aesKey.Length} sample={HexSample(aesKey, 8)}");
+            if (aesKey.Length != 16 && aesKey.Length != 24 && aesKey.Length != 32)
+            {
+                Logger.Log("Decrypt: AES key length invalid.");
+                return "[UNABLE TO DECRYPT: invalid aes key length]";
+            }
+
+            int cipherStart = PrefixLen + IvLen;
+            int cipherLen = encryptedData.Length - cipherStart - TagLen;
+            if (cipherLen <= 0)
+            {
+                Logger.Log("Decrypt: no ciphertext present after iv/tag accounting.");
+                return "[UNABLE TO DECRYPT: no ciphertext]";
+            }
+
+            var iv = new byte[IvLen];
+            Buffer.BlockCopy(encryptedData, PrefixLen, iv, 0, IvLen);
+            var ciphertext = new byte[cipherLen];
+            Buffer.BlockCopy(encryptedData, cipherStart, ciphertext, 0, cipherLen);
+            var tag = new byte[TagLen];
+            Buffer.BlockCopy(encryptedData, encryptedData.Length - TagLen, tag, 0, TagLen);
+
+            LogHexSample("iv", iv, 0, iv.Length);
+            LogHexSample("tag", tag, 0, tag.Length);
+            Logger.Log($"Decrypt: ciphertext len={ciphertext.Length}");
+
+            try
+            {
+                var plaintext = new byte[ciphertext.Length];
+                using var aes = new AesGcm(aesKey, TagLen);
+                aes.Decrypt(iv, ciphertext, tag, plaintext);
+                string result = Encoding.UTF8.GetString(plaintext);
+                Logger.Log($"Decrypt: success plaintext len={result.Length}");
+                return result;
+            }
+            catch (CryptographicException cex)
+            {
+                Logger.Log($"Decrypt: authentication failed: {cex.Message}");
+                return "[UNABLE TO DECRYPT: authentication failed]";
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"Decrypt: unexpected error: {ex.Message}");
+                return "[UNABLE TO DECRYPT: error]";
+            }
+        }
+
+        // small helpers used above
+        private static void LogHexSample(string label, byte[] buffer, int offset, int len)
+        {
+            try
+            {
+                if (buffer == null || buffer.Length == 0)
+                {
+                    Logger.Log($"{label}: <empty>");
+                    return;
+                }
+
+                int safeLen = Math.Max(0, Math.Min(len, buffer.Length - offset));
+                if (safeLen <= 0)
+                {
+                    Logger.Log($"{label}: <no-data>");
+                    return;
+                }
+
+                string hex = BitConverter.ToString(buffer, offset, safeLen).Replace("-", "");
+                Logger.Log($"{label}: {hex}");
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"{label}: failed to create hex sample: {ex.Message}");
+            }
+        }
+
+        private static string HexSample(byte[] b, int maxBytes)
+        {
+            if (b == null || b.Length == 0) return "<empty>";
+            int n = Math.Min(maxBytes, b.Length);
+            return BitConverter.ToString(b, 0, n).Replace("-", "");
+        }
+
+        private static bool IsAsciiPrintable(byte v) => v >= 0x20 && v <= 0x7E;
 
         // Export selected HKCU registry keys to .reg files
         private void ExportHKCU(string backupPath)
