@@ -27,7 +27,7 @@ namespace BackupWorkstation
         private int _filesCopied;
         private int _totalFiles;
 
-        // --- NEW: Win32 API for network share connection ---
+        // --- Win32 API for network share connection ---
         [DllImport("mpr.dll")]
         private static extern int WNetAddConnection2(ref NETRESOURCE netResource, string password, string username, int flags);
 
