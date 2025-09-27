@@ -79,10 +79,3 @@ Headless usage idea: call the exe with a manifest path and output folder from ta
 
 License
 Include your chosen license file (recommended: MIT). If no license is present, the project is assumed MIT for convenience until you pick a specific license.
-
-Next steps I can help with
-- Draft the JSON manifest schema and validation logic
-- Add a restore preview UI that lists which .reg files will be applied and what will be skipped
-- Create a small CLI wrapper for headless backups or scheduled captures
-Which of those would you like next?
-
