@@ -1,5 +1,6 @@
 # BackupWorkstation
-Portable, field-friendly workstation backup and restore tool built for predictable, surgical restores. Captures the user-scoped settings technicians actually care about while avoiding risky hive replacements and brittle, app-specific edge cases.
+Portable, field-friendly workstation backup and restore tool (restore tool in separate release and still in progress) 
+built for predictable, surgical restores. Captures the user-scoped settings technicians actually care about while avoiding risky hive replacements and brittle, app-specific edge cases.
 
 ## Features
 - Exports targeted HKCU subkeys (not the whole hive) for safe, reliable backups
