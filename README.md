@@ -53,10 +53,10 @@ Options
 - Add custom app-targets or file-based exports via the manifest.
 
 Troubleshooting
-- "Failed to start reg.exe"  ;;  Ensure %SystemRoot%\\System32 is in PATH and reg.exe is accessible.
-- [UNABLE TO DECRYPT] for Chrome/Edge secrets  ;;  Run the app without elevation so DPAPI keys match the logged-in user.
-- Registry export skipped  ;;  Check the live log for key-not-found warnings; the tool intentionally skips missing or empty keys.
-- Permissions or locked hive errors  ;;  You cannot replace HKCU while the user is logged in. Use targeted imports or unload the hive from another account if absolutely necessary (risky).
+- "Failed to start reg.exe"  -->  Ensure %SystemRoot%\\System32 is in PATH and reg.exe is accessible.
+- [UNABLE TO DECRYPT] for Chrome/Edge secrets  -->  Run the app without elevation so DPAPI keys match the logged-in user.
+- Registry export skipped  -->  Check the live log for key-not-found warnings; the tool intentionally skips missing or empty keys.
+- Permissions or locked hive errors  -->  You cannot replace HKCU while the user is logged in. Use targeted imports or unload the hive from another account if absolutely necessary (risky).
   Logs and a timestamped diagnostics file are written to the backup folder; include these when reporting issues.
 
 Contributing
