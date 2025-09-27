@@ -21,7 +21,7 @@ built for predictable, surgical restores. Captures the user-scoped settings tech
 - Launch BackupWorkstation.exe as the user you want to back up.
 - Set a backup destination using the Browse control.
 - (Optional) Enter a source username for labeling — exports are taken from the current user context.
-- Click Start Backup and watch the live log for per-key results.
+- Click Start Backup and watch the live log for data backup and registry per-key results.
 - Verify the backup folder contains .reg files and a manifest describing exported keys.
 
 ## Usage Details
