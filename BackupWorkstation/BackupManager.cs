@@ -230,14 +230,16 @@ namespace BackupWorkstation
             }
 
             string tempDb = Path.Combine(Path.GetTempPath(), $"{browserName}_LoginData_{Guid.NewGuid():N}.db");
+            byte[]? aesKey = null;
+
             try
             {
-                byte[]? aesKey = await GetDecryptedKeyAsync(localStatePath);
+                aesKey = await GetDecryptedKeyAsync(localStatePath);
                 Logger.Log($"Export: obtained AES key len={(aesKey?.Length ?? 0)}");
 
-                if (aesKey == null || (aesKey.Length != 16 && aesKey.Length != 24 && aesKey.Length != 32))
+                if (aesKey == null || aesKey.Length != 32)
                 {
-                    Logger.Log($"❌ {browserName} AES key invalid length: {(aesKey?.Length ?? 0)}");
+                    Logger.Log($"❌ {browserName} AES key invalid length: {(aesKey?.Length ?? 0)}; expected 32 bytes.");
                     return;
                 }
 
@@ -249,6 +251,7 @@ namespace BackupWorkstation
                 }
 
                 Logger.Log($"Export: opened temp DB at {tempDb}");
+
                 using var conn = new SqliteConnection($"Data Source={tempDb};Mode=ReadOnly;Cache=Shared");
                 conn.Open();
 
@@ -259,6 +262,8 @@ namespace BackupWorkstation
                 writer.WriteLine("URL,Username,Password");
 
                 int exported = 0;
+                int failed = 0;
+
                 while (reader.Read())
                 {
                     string url = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
@@ -266,12 +271,22 @@ namespace BackupWorkstation
                     byte[] encryptedPassword = reader.IsDBNull(2) ? Array.Empty<byte>() : (byte[])reader["password_value"];
 
                     string password = DecryptPasswordWithDiagnostics(encryptedPassword, aesKey);
-                    writer.WriteLine($"{CsvEscape(url)},{CsvEscape(username)},{CsvEscape(password)}");
-                    exported++;
+                    if (password == null) password = "[UNABLE TO DECRYPT]"; // defensive, in case signature is nullable
+
+                    try
+                    {
+                        writer.WriteLine($"{CsvEscape(url)},{CsvEscape(username)},{CsvEscape(password)}");
+                        exported++;
+                    }
+                    catch (Exception rowEx)
+                    {
+                        failed++;
+                        Logger.Log($"⚠ Failed writing CSV row for {url}: {rowEx.Message}");
+                    }
                 }
 
                 writer.Flush();
-                Logger.Log($"🔐 Exported {exported} {browserName} password entries to: {outputCsv}");
+                Logger.Log($"🔐 Exported {exported} {browserName} password entries to: {outputCsv} (failed: {failed})");
             }
             catch (Exception ex)
             {
@@ -279,12 +294,35 @@ namespace BackupWorkstation
             }
             finally
             {
+                // clear sensitive key material
+                if (aesKey != null)
+                {
+                    Array.Clear(aesKey, 0, aesKey.Length);
+                }
+
+                // Ensure all handles released before attempting delete
                 try
                 {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    Thread.Sleep(100);
+
                     if (File.Exists(tempDb))
                     {
-                        File.Delete(tempDb);
-                        Logger.Log($"Cleanup: deleted temp DB {tempDb}");
+                        // retry delete in a small loop if locked
+                        for (int i = 0; i < 3; i++)
+                        {
+                            try
+                            {
+                                File.Delete(tempDb);
+                                Logger.Log($"Cleanup: deleted temp DB {tempDb}");
+                                break;
+                            }
+                            catch (IOException)
+                            {
+                                Thread.Sleep(100);
+                            }
+                        }
                     }
                 }
                 catch (Exception ex)
