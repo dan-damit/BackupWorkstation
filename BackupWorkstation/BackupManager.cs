@@ -264,26 +264,46 @@ namespace BackupWorkstation
                 int exported = 0;
                 int failed = 0;
 
+                // Reader loop per line
+                int decryptedCount = 0;
+                int writtenCount = 0;
+                int failedDecryptCount = 0;
+
                 while (reader.Read())
                 {
                     string url = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
                     string username = reader.IsDBNull(1) ? string.Empty : reader.GetString(1);
                     byte[] encryptedPassword = reader.IsDBNull(2) ? Array.Empty<byte>() : (byte[])reader["password_value"];
 
-                    string password = DecryptPasswordWithDiagnostics(encryptedPassword, aesKey);
-                    if (password == null) password = "[UNABLE TO DECRYPT]"; // defensive, in case signature is nullable
+                    // Use exhaustive variant tester (keeps all keys local)
+                    var diag = TryExhaustiveDecrypt(encryptedPassword, aesKey!, url);
+
+                    string password;
+                    if (diag.Success)
+                    {
+                        decryptedCount++;
+                        // diag.PlainText may be empty for blank passwords
+                        password = diag.PlainText ?? string.Empty;
+                    }
+                    else
+                    {
+                        failedDecryptCount++;
+                        password = "[UNABLE TO DECRYPT]";
+                        Logger.Log($"❌ Decryption failed for {url}: {diag.Error} | Iv:{diag.IvHex} Tag:{diag.TagHex} Ct:{diag.CtHexSample}");
+                    }
 
                     try
                     {
                         writer.WriteLine($"{CsvEscape(url)},{CsvEscape(username)},{CsvEscape(password)}");
-                        exported++;
+                        writtenCount++;
                     }
                     catch (Exception rowEx)
                     {
-                        failed++;
                         Logger.Log($"⚠ Failed writing CSV row for {url}: {rowEx.Message}");
                     }
                 }
+
+                Logger.Log($"🔐 Export summary: decrypted={decryptedCount} failedDecrypts={failedDecryptCount} rowsWritten={writtenCount}");
 
                 writer.Flush();
                 Logger.Log($"🔐 Exported {exported} {browserName} password entries to: {outputCsv} (failed: {failed})");
@@ -740,25 +760,25 @@ namespace BackupWorkstation
             }
         }
 
-        // Decrypt individual password entry
-        private string DecryptPasswordWithDiagnostics(byte[] encryptedData, byte[] aesKey, string origin = "")
-        {
-            var result = DecryptChromeBlob(encryptedData, aesKey);
-            if (!string.IsNullOrEmpty(origin)) Log($"Entry origin: {origin}");
-
-            if (result.Success)
-            {
-                string sample = result.PlainText == null ? "<null>" : (result.PlainText.Length <= 64 ? result.PlainText : result.PlainText.Substring(0, 64));
-                Log($"🔓 Decrypted Chrome password sample: {sample}");
-                return result.PlainText ?? string.Empty;
-            }
-            else
-            {
-                Log($"❌ Decryption failed: {result.Error}");
-                Log($"🔍 IV: {result.IvHex} | Tag: {result.TagHex} | CT sample: {result.CtHexSample}");
-                return "[UNABLE TO DECRYPT]";
-            }
-        }
+        //// Decrypt individual password entry
+        //private string DecryptPasswordWithDiagnostics(byte[] encryptedData, byte[] aesKey, string origin = "")
+        //{
+        //    var result = TryExhaustiveDecrypt(encryptedData, aesKey);
+        //    if (!string.IsNullOrEmpty(origin)) Log($"Entry origin: {origin}");
+        //
+        //    if (result.Success)
+        //    {
+        //        string sample = result.PlainText == null ? "<null>" : (result.PlainText.Length <= 64 ? result.PlainText : result.PlainText.Substring(0, 64));
+        //        Log($"🔓 Decrypted Chrome password sample: {sample}");
+        //        return result.PlainText ?? string.Empty;
+        //    }
+        //    else
+        //    {
+        //        Log($"❌ Decryption failed: {result.Error}");
+        //        Log($"🔍 IV: {result.IvHex} | Tag: {result.TagHex} | CT sample: {result.CtHexSample}");
+        //        return "[UNABLE TO DECRYPT]";
+        //    }
+        //}
 
         // --- Decrypt result structure for diagnostics ---
         public class ChromeDecryptResult
@@ -772,109 +792,79 @@ namespace BackupWorkstation
         }
 
         // Decrypt Chrome/Edge password blob using AES-GCM
-        public static ChromeDecryptResult DecryptChromeBlob(byte[] blob, byte[] aesKey)
+        // Call: TryDecryptVariants(blob, aesKey, origin)
+        public ChromeDecryptResult TryExhaustiveDecrypt(byte[] blob, byte[] aesKey, string origin = "")
         {
-            if (blob == null || blob.Length == 0)
-                return new ChromeDecryptResult { Success = false, Error = "blob len=0" };
+            string Hex(byte[] b, int n = 12) => b == null || b.Length == 0 ? "<empty>" : BitConverter.ToString(b.Take(n).ToArray()).Replace("-", "");
+            if (blob == null || blob.Length == 0) return new ChromeDecryptResult { Success = false, Error = "blob len=0" };
 
-            // helper for small hex samples
-            static string HexSample(byte[] b, int len = 8)
-                => b == null || b.Length == 0 ? "<empty>" : BitConverter.ToString(b.Take(len).ToArray()).Replace("-", "");
+            // possible iv/tag sizes and parsing options
+            int[] ivCandidates = { 12, 16 };
+            int[] tagCandidates = { 12, 16 };
+            bool[] tagPositionsTrailing = { true, false }; // true => tag at end, false => tag after IV
+                                                           // AAD options: none, prefix bytes (first 3 if 'v..'), or the actual leading bytes up to offset
+            byte[] prefix = blob.Length >= 3 ? Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(blob, 0, 3)) : Array.Empty<byte>();
+            var aadOptions = new List<byte[]?>() { null, prefix, blob.Take(3).ToArray(), blob.Take(0).ToArray(), blob.Take(4).ToArray() };
 
-            try
-            {
-                // detect exact 3-byte version prefix ("v10","v11","v20") and set offset accordingly
-                int offset = 0;
-                int ivLen = 12;
-                int tagLen = 16;
-
-                string prefix = blob.Length >= 3 ? Encoding.ASCII.GetString(blob, 0, 3) : string.Empty;
-                if (prefix == "v10" || prefix == "v11" || prefix == "v20")
-                {
-                    offset = 3; // skip the 3-byte version marker
-                }
-                else
-                {
-                    prefix = string.Empty;
-                    offset = 0;
-                }
-
-                if (blob.Length < offset + ivLen + tagLen + 1)
-                    return new ChromeDecryptResult { Success = false, Error = $"blob too small for expected layout. len={blob.Length} prefix='{prefix}'" };
-
-                // iv: 12 bytes starting at offset
-                byte[] iv = blob.Skip(offset).Take(ivLen).ToArray();
-
-                // tag: last 16 bytes
-                byte[] tag = blob.Skip(blob.Length - tagLen).Take(tagLen).ToArray();
-
-                // ciphertext: the bytes between iv and tag
-                int ctStart = offset + ivLen;
-                int ctLen = blob.Length - ctStart - tagLen;
-                if (ctLen < 0) ctLen = 0;
-                byte[] ciphertext = blob.Skip(ctStart).Take(ctLen).ToArray();
-
-                // Logging summary (short samples)
-                string ivSample = HexSample(iv);
-                string tagSample = HexSample(tag);
-                string ctSample = HexSample(ciphertext);
-
-                // Validate lengths commonly expected for AES-GCM
-                if (iv.Length != ivLen || tag.Length != tagLen)
-                    return new ChromeDecryptResult { Success = false, Error = $"unexpected iv/tag length iv={iv.Length} tag={tag.Length}", IvHex = ivSample, TagHex = tagSample };
-
-                // Handle empty password case (valid, but no ciphertext)
-                if (ctLen == 0)
-                {
-                    // valid empty password (no ciphertext); return empty plaintext
-                    return new ChromeDecryptResult
+            for (int ivLenIdx = 0; ivLenIdx < ivCandidates.Length; ivLenIdx++)
+                for (int tagLenIdx = 0; tagLenIdx < tagCandidates.Length; tagLenIdx++)
+                    for (int tagPosIdx = 0; tagPosIdx < tagPositionsTrailing.Length; tagPosIdx++)
                     {
-                        Success = true,
-                        PlainText = string.Empty,
-                        IvHex = ivSample,
-                        TagHex = tagSample,
-                        CtHexSample = ctSample
-                    };
-                }
+                        int ivLen = ivCandidates[ivLenIdx];
+                        int tagLen = tagCandidates[tagLenIdx];
+                        bool tagTrailing = tagPositionsTrailing[tagPosIdx];
 
-                // AesGcm expects ciphertext only (tag passed separately)
-                try
-                {
-                    using var aesGcm = new AesGcm(aesKey, tagLen);
-                    byte[] plaintext = new byte[ciphertext.Length];
-                    // AesGcm.Decrypt( nonce, ciphertext, tag, plaintext, associatedData )
-                    // Chrome currently does not use extra AAD for these blobs (but version specifics might vary),
-                    // so pass null for associatedData unless discovered otherwise.
-                    aesGcm.Decrypt(iv, ciphertext, tag, plaintext, null);
-                    string result = Encoding.UTF8.GetString(plaintext);
+                        // minimal sanity length check
+                        if (blob.Length < ivLen + tagLen + 1) continue;
 
-                    return new ChromeDecryptResult
-                    {
-                        Success = true,
-                        PlainText = result,
-                        IvHex = ivSample,
-                        TagHex = tagSample,
-                        CtHexSample = ctSample
-                    };
-                }
-                catch (CryptographicException cex)
-                {
-                    return new ChromeDecryptResult
-                    {
-                        Success = false,
-                        Error = $"authentication failed: {cex.Message}",
-                        IvHex = ivSample,
-                        TagHex = tagSample,
-                        CtHexSample = ctSample
-                    };
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ChromeDecryptResult { Success = false, Error = $"exception parsing blob: {ex.Message}" };
-            }
+                        // Try offsets: if leading 3 bytes are ascii 'v..', treat offset as 3 else 0
+                        int offset = (blob.Length >= 3 && (blob[0] == (byte)'v')) ? 3 : 0;
+
+                        byte[] iv = blob.Skip(offset).Take(ivLen).ToArray();
+                        byte[] tag;
+                        byte[] ciphertext;
+
+                        if (tagTrailing)
+                        {
+                            tag = blob.Skip(blob.Length - tagLen).Take(tagLen).ToArray();
+                            int ctStart = offset + ivLen;
+                            int ctLen = Math.Max(0, blob.Length - ctStart - tagLen);
+                            ciphertext = blob.Skip(ctStart).Take(ctLen).ToArray();
+                        }
+                        else
+                        {
+                            tag = blob.Skip(offset + ivLen).Take(tagLen).ToArray();
+                            ciphertext = blob.Skip(offset + ivLen + tagLen).Take(Math.Max(0, blob.Length - (offset + ivLen + tagLen))).ToArray();
+                        }
+
+                        foreach (var aad in aadOptions)
+                        {
+                            try
+                            {
+                                if (ciphertext.Length == 0)
+                                {
+                                    // treat as valid empty plaintext
+                                    Logger.Log($"EXH: origin={origin} ivLen={ivLen} tagLen={tagLen} tagTrailing={tagTrailing} aad={(aad == null ? "<none>" : Hex(aad, 8))} => EMPTY_PLAINTEXT");
+                                    return new ChromeDecryptResult { Success = true, PlainText = string.Empty, IvHex = Hex(iv), TagHex = Hex(tag), CtHexSample = Hex(ciphertext) };
+                                }
+
+                                using var aesGcm = new AesGcm(aesKey, tagLen);
+                                byte[] plaintext = new byte[ciphertext.Length];
+                                aesGcm.Decrypt(iv, ciphertext, tag, plaintext, aad);
+                                string pt = Encoding.UTF8.GetString(plaintext);
+                                Logger.Log($"EXH: origin={origin} SUCCESS ivLen={ivLen} tagLen={tagLen} tagTrailing={tagTrailing} aad={(aad == null ? "<none>" : Hex(aad, 8))} ptSample=\"{(pt.Length > 64 ? pt.Substring(0, 64) : pt)}\"");
+                                return new ChromeDecryptResult { Success = true, PlainText = pt, IvHex = Hex(iv), TagHex = Hex(tag), CtHexSample = Hex(ciphertext) };
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.Log($"EXH: origin={origin} fail ivLen={ivLen} tagLen={tagLen} tagTrailing={tagTrailing} aad={(aad == null ? "<none>" : Hex(aad, 8))} err={ex.Message}");
+                            }
+                        }
+                    }
+
+            return new ChromeDecryptResult { Success = false, Error = "exhaustive variants failed" };
         }
-        
+
         // Export selected HKCU registry keys to .reg files
         private void ExportHKCU(string backupPath)
         {
@@ -946,6 +936,23 @@ namespace BackupWorkstation
                 {
                     Log($"❌ Exception while exporting {kvp.Key}: {ex.Message}");
                 }
+            }
+        }
+
+        // Call after finding tempDb and aesKey: DumpBlobs(tempDb, aesKey);
+        public void DumpBlobs(string tempDbPath, byte[] aesKey)
+        {
+            using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={tempDbPath};Mode=ReadOnly;Cache=Shared");
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT id, origin_url, hex(password_value) AS hx FROM logins";
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                var id = r.GetInt64(0);
+                var origin = r.IsDBNull(1) ? "<no origin>" : r.GetString(1);
+                var hex = r.IsDBNull(2) ? string.Empty : r.GetString(2);
+                Logger.Log($"ROW id={id} origin={origin} blobHexLen={hex.Length} blobHexSample={hex.Substring(0, Math.Min(256, hex.Length))}");
             }
         }
 

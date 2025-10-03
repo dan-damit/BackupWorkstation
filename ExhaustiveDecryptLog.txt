@@ -1,0 +1,129 @@
+[17:54:02] GetDecryptedKey: dpapi blob len=288
+[17:54:02] GetDecryptedKey: success key len=32 sample=1422578EDC762449
+[17:54:02] Export: obtained AES key len=32
+[17:54:02] Export: opened temp DB at C:\Users\advadmin\AppData\Local\Temp\Chrome_LoginData_677608be7d204458bf34e4d2a34f1969.db
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=<none> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=<empty> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=76323091 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=<none> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=<empty> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=76323091 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=<none> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=<empty> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=76323091 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=<none> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=<empty> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=76323091 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=<none> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=<empty> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=76323091 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=<none> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=<empty> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=76323091 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=<none> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=<empty> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=76323091 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=<none> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=<empty> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=76323091 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] ❌ Decryption failed for https://test.com/: exhaustive variants failed | Iv: Tag: Ct:
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=<none> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=<empty> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=76323067 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=<none> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=<empty> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=76323067 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=<none> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=<empty> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=76323067 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=<none> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=<empty> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=76323067 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=<none> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=<empty> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=76323067 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=<none> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=<empty> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=76323067 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=<none> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=<empty> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=76323067 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=<none> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=<empty> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test1.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=76323067 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] ❌ Decryption failed for https://test1.com/: exhaustive variants failed | Iv: Tag: Ct:
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=<none> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=<empty> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=12 tagTrailing=True aad=76323032 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=<none> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=<empty> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=12 tagTrailing=False aad=76323032 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=<none> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=<empty> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=16 tagTrailing=True aad=76323032 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=<none> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=763230 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=<empty> err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=12 tagLen=16 tagTrailing=False aad=76323032 err=The computed authentication tag did not match the input authentication tag.
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=<none> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=<empty> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=12 tagTrailing=True aad=76323032 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=<none> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=<empty> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=12 tagTrailing=False aad=76323032 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=<none> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=<empty> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=16 tagTrailing=True aad=76323032 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=<none> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=763230 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=<empty> err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] EXH: origin=https://test2.com/ fail ivLen=16 tagLen=16 tagTrailing=False aad=76323032 err=The specified nonce is not a valid size for this algorithm. (Parameter 'nonce')
+[17:54:02] ❌ Decryption failed for https://test2.com/: exhaustive variants failed | Iv: Tag: Ct:
+[17:54:02] 🔐 Export summary: decrypted=0 failedDecrypts=3 rowsWritten=3
+[17:54:02] 🔐 Exported 0 Chrome password entries to: C:\Users\advadmin\Desktop\advadmin\ChromePasswords.csv (failed: 0)

@@ -3,10 +3,9 @@
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
 		<TargetFramework>net8.0-windows</TargetFramework>
-		<PlatformTarget>x64</PlatformTarget>
+		<UseWPF>true</UseWPF>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
-		<UseWPF>true</UseWPF>
 		<ApplicationIcon>Assets\WSSetupIcon.ico</ApplicationIcon>
 
 		<AssemblyTitle>Workstation Backup Tool</AssemblyTitle>
@@ -19,9 +18,8 @@
 		<!-- Trim unused assemblies for smaller EXE -->
 		<PublishSingleFile>true</PublishSingleFile>
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
-		<SelfContained>true</SelfContained>
+		<SelfContained>false</SelfContained>
 		<PublishReadyToRun>true</PublishReadyToRun>
-		<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
 		<IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
 		<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
 
