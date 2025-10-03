@@ -3,6 +3,7 @@ Portable, field-friendly workstation backup and restore tool (restore tool in se
 built for predictable, surgical restores. Captures the user-scoped settings technicians actually care about while avoiding risky hive replacements and brittle, app-specific edge cases.
 
 ## Features
+- Copies the important user data from old workstation to a designated target folder
 - Exports targeted HKCU subkeys (not the whole hive) for safe, reliable backups
 - Per-key .reg export files with clear, per-item logging
 - DPAPI-safe execution when run asInvoker so user secrets decrypt correctly
