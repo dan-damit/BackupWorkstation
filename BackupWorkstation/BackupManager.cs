@@ -741,13 +741,15 @@ namespace BackupWorkstation
         }
 
         // Decrypt individual password entry
-        private string DecryptPasswordWithDiagnostics(byte[] encryptedData, byte[] aesKey)
+        private string DecryptPasswordWithDiagnostics(byte[] encryptedData, byte[] aesKey, string origin = "")
         {
             var result = DecryptChromeBlob(encryptedData, aesKey);
+            if (!string.IsNullOrEmpty(origin)) Log($"Entry origin: {origin}");
 
             if (result.Success)
             {
-                Log($"🔓 Decrypted Chrome password: {result.PlainText}");
+                string sample = result.PlainText == null ? "<null>" : (result.PlainText.Length <= 64 ? result.PlainText : result.PlainText.Substring(0, 64));
+                Log($"🔓 Decrypted Chrome password sample: {sample}");
                 return result.PlainText ?? string.Empty;
             }
             else
@@ -781,29 +783,19 @@ namespace BackupWorkstation
 
             try
             {
-                // Read ASCII prefix (e.g., "v10", "v11", "v20") if present
-                string prefix = Encoding.ASCII.GetString(blob, 0, Math.Min(4, blob.Length));
-                // Normalize prefix detection
-                if (prefix.StartsWith("v", StringComparison.OrdinalIgnoreCase))
-                    prefix = prefix.Substring(0, Math.Min(3, prefix.Length));
-                else
-                    prefix = string.Empty;
-
+                // detect exact 3-byte version prefix ("v10","v11","v20") and set offset accordingly
                 int offset = 0;
                 int ivLen = 12;
                 int tagLen = 16;
 
-                // Chrome layout notes
-                // v10/v11: often no explicit version prefix, older layouts; many exporters treat them similarly
-                // v20: prefix "v20" then 12-byte IV, ciphertext, 16-byte tag (common current layout)
-                if (prefix == "v20" || prefix == "v10" || prefix == "v11")
+                string prefix = blob.Length >= 3 ? Encoding.ASCII.GetString(blob, 0, 3) : string.Empty;
+                if (prefix == "v10" || prefix == "v11" || prefix == "v20")
                 {
-                    // prefix present -> skip prefix bytes when parsing iv/ct/tag
-                    offset = prefix.Length;
+                    offset = 3; // skip the 3-byte version marker
                 }
                 else
                 {
-                    // no prefix — many older blobs are just raw DPAPI output or other forms
+                    prefix = string.Empty;
                     offset = 0;
                 }
 
@@ -831,10 +823,24 @@ namespace BackupWorkstation
                 if (iv.Length != ivLen || tag.Length != tagLen)
                     return new ChromeDecryptResult { Success = false, Error = $"unexpected iv/tag length iv={iv.Length} tag={tag.Length}", IvHex = ivSample, TagHex = tagSample };
 
+                // Handle empty password case (valid, but no ciphertext)
+                if (ctLen == 0)
+                {
+                    // valid empty password (no ciphertext); return empty plaintext
+                    return new ChromeDecryptResult
+                    {
+                        Success = true,
+                        PlainText = string.Empty,
+                        IvHex = ivSample,
+                        TagHex = tagSample,
+                        CtHexSample = ctSample
+                    };
+                }
+
                 // AesGcm expects ciphertext only (tag passed separately)
                 try
                 {
-                    using var aesGcm = new AesGcm(aesKey, tag.Length);
+                    using var aesGcm = new AesGcm(aesKey, tagLen);
                     byte[] plaintext = new byte[ciphertext.Length];
                     // AesGcm.Decrypt( nonce, ciphertext, tag, plaintext, associatedData )
                     // Chrome currently does not use extra AAD for these blobs (but version specifics might vary),
