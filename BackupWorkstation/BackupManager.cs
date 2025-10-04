@@ -44,6 +44,46 @@ namespace BackupWorkstation
             public string lpProvider;
         }
 
+        // --- Check if we can open a file exclusively (i.e., not locked) ---
+        private bool TryOpenExclusive(string path)
+        {
+            try
+            {
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log($"🔒 File locked or inaccessible: {path} - {ex.Message}");
+                return false;
+            }
+        }
+
+        // --- Check and wait for file to be unlocked ---
+        private bool EnsureUnlocked(string path, int maxAttempts = 5, int delayMs = 500)
+        {
+            if (!File.Exists(path))
+            {
+                Log($"ℹ File not present (skipping lock check): {path}");
+                return true;
+            }
+
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                if (TryOpenExclusive(path))
+                {
+                    Log($"✔ Exclusive access obtained for: {path}");
+                    return true;
+                }
+
+                Log($"⏳ Waiting for file unlock ({attempt}/{maxAttempts}): {path}");
+                Thread.Sleep(delayMs);
+            }
+
+            Log($"❌ Could not obtain exclusive access to: {path} after {maxAttempts} attempts.");
+            return false;
+        }
+
         // --- Main backup method ---
         public async Task RunBackupAsync(string sourceUser, string backupRoot)
         {
@@ -98,9 +138,27 @@ namespace BackupWorkstation
             // 🔹 Kill processes before backup
             TerminateProcesses();
 
-            // 🔹 Collect tech info
+            // --- ensure Login Data files are unlocked before proceeding ---
+            string loginDataChrome = Path.Combine(userProfile, "AppData", "Local", "Google", "Chrome", "User Data", "Default", "Login Data");
+            string loginDataEdge = Path.Combine(userProfile, "AppData", "Local", "Microsoft", "Edge", "User Data", "Default", "Login Data");
+
+            // Wait for exclusive access to critical DBs (chrome required; edge optional)
+            if (!EnsureUnlocked(loginDataChrome))
+            {
+                Log("❌ Aborting backup: Chrome Login Data locked. Consider stopping Chrome and re-running backup.");
+                return;
+            }
+
+            bool edgeUnlocked = EnsureUnlocked(loginDataEdge);
+            if (!edgeUnlocked)
+            {
+                Log("⚠ Edge Login Data locked or not present. Edge password export will be skipped.");
+            }
+
+            // 🔹 Collect tech info (after locks verified)
             CollectTechInfo(Path.Combine(backupPath, @"OTHER\tech info.txt"));
 
+            // --- PRESCAN: Pre-scan all files to get a global total (unchanged) ---
             var profileDirs = new[]
             {
                 "Contacts", "Desktop", "Documents", "Downloads", "Favorites",
@@ -150,13 +208,25 @@ namespace BackupWorkstation
             foreach (var kvp in extraAppDataDirs)
                 appDataDirs[kvp.Key] = kvp.Value;
 
-            // 1️ Pre‑scan all files to get a global total
+            // 1 Pre‑scan all files to get a global total
             _filesCopied = 0;
             _totalFiles = CountAllFiles(userProfile, profileDirs, appDataDirs, extraDirs);
 
             Log($"📊 Found {_totalFiles} files to back up.");
 
-            // 2️ Copy profile directories
+            // 2 Export browser passwords
+            Log("🔐 Exporting browser passwords (early-phase)...");
+            await ExportBrowserPasswordsAsync("Chrome", backupPath);
+            if (edgeUnlocked)
+            {
+                await ExportBrowserPasswordsAsync("Edge", backupPath);
+            }
+            else
+            {
+                Log("⚠ Skipped Edge password export due to locked/missing Login Data.");
+            }
+
+            // 3 Copy profile directories
             foreach (var dir in profileDirs)
             {
                 string source = Path.Combine(userProfile, dir);
@@ -164,7 +234,7 @@ namespace BackupWorkstation
                 await CopyIfExistsAsync(source, destination);
             }
 
-            // 3️ Copy AppData directories
+            // 4 Copy AppData directories
             foreach (var kvp in appDataDirs)
             {
                 string source = Path.Combine(userProfile, kvp.Key);
@@ -172,15 +242,13 @@ namespace BackupWorkstation
                 await CopyIfExistsAsync(source, destination);
             }
 
-            // 4️ Copy extra program/public dirs
+            // 5 Copy extra program/public dirs
             foreach (var kvp in extraDirs)
             {
                 await CopyIfExistsAsync(kvp.Key, kvp.Value);
             }
 
-            // 5️ Export browser passwords and HKCU hive
-            await ExportBrowserPasswordsAsync("Chrome", backupPath);
-            await ExportBrowserPasswordsAsync("Edge", backupPath);
+            // 6 Export HKCU hive
             ExportHKCU(backupPath);
 
             Logger.Log("✅ Backup complete.");
@@ -655,24 +723,41 @@ namespace BackupWorkstation
         // Terminate known processes that may lock files
         private void TerminateProcesses()
         {
-            string[] targets = {
-        "firefox", "chrome", "outlook", "StikyNot",
-        "MicrosoftEdge", "MicrosoftEdgeCP"
-        };
+            string[] targets = { "chrome", "msedge", "firefox", "OUTLOOK", "StikyNot" }; // adjust to real names on host
             foreach (var name in targets)
             {
-                foreach (var proc in Process.GetProcessesByName(name))
+                var procs = Process.GetProcessesByName(name);
+                if (procs.Length == 0) continue;
+                Log($"🛑 Terminating {procs.Length} process(es) named: {name}");
+                foreach (var proc in procs)
                 {
                     try
                     {
-                        proc.Kill();
-                        Log($"🛑 Terminated process: {name}.exe");
+                        if (!proc.HasExited)
+                        {
+                            try { proc.CloseMainWindow(); } catch { /* ignore */ }
+                            if (!proc.WaitForExit(3000))
+                            {
+                                proc.Kill();
+                                proc.WaitForExit(5000);
+                            }
+                        }
+                        Log($"✔ Terminated process: {name} (pid {proc.Id})");
                     }
                     catch (Exception ex)
                     {
-                        Log($"⚠ Failed to terminate {name}.exe: {ex.Message}");
+                        Log($"⚠ Failed to terminate {name} (pid {proc.Id}): {ex.Message}");
                     }
                 }
+            }
+
+            // extra safety: small pause then re-check and log remaining processes of interest
+            Thread.Sleep(500);
+            foreach (var name in targets)
+            {
+                var remaining = Process.GetProcessesByName(name);
+                if (remaining.Length > 0)
+                    Log($"⚠ Still {remaining.Length} process(es) named {name} remain after termination attempts.");
             }
         }
 
