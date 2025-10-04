@@ -760,26 +760,6 @@ namespace BackupWorkstation
             }
         }
 
-        //// Decrypt individual password entry
-        //private string DecryptPasswordWithDiagnostics(byte[] encryptedData, byte[] aesKey, string origin = "")
-        //{
-        //    var result = TryExhaustiveDecrypt(encryptedData, aesKey);
-        //    if (!string.IsNullOrEmpty(origin)) Log($"Entry origin: {origin}");
-        //
-        //    if (result.Success)
-        //    {
-        //        string sample = result.PlainText == null ? "<null>" : (result.PlainText.Length <= 64 ? result.PlainText : result.PlainText.Substring(0, 64));
-        //        Log($"🔓 Decrypted Chrome password sample: {sample}");
-        //        return result.PlainText ?? string.Empty;
-        //    }
-        //    else
-        //    {
-        //        Log($"❌ Decryption failed: {result.Error}");
-        //        Log($"🔍 IV: {result.IvHex} | Tag: {result.TagHex} | CT sample: {result.CtHexSample}");
-        //        return "[UNABLE TO DECRYPT]";
-        //    }
-        //}
-
         // --- Decrypt result structure for diagnostics ---
         public class ChromeDecryptResult
         {
@@ -792,19 +772,20 @@ namespace BackupWorkstation
         }
 
         // Decrypt Chrome/Edge password blob using AES-GCM
-        // Call: TryDecryptVariants(blob, aesKey, origin)
+        // Call: TryExhaustiveDecrypt(blob, aesKey, origin)
         public ChromeDecryptResult TryExhaustiveDecrypt(byte[] blob, byte[] aesKey, string origin = "")
         {
-            string Hex(byte[] b, int n = 12) => b == null || b.Length == 0 ? "<empty>" : BitConverter.ToString(b.Take(n).ToArray()).Replace("-", "");
+            static string Hex(byte[]? b, int n = 12) => b == null || b.Length == 0 ? "<empty>" : BitConverter.ToString(b.Take(n).ToArray()).Replace("-", "");
             if (blob == null || blob.Length == 0) return new ChromeDecryptResult { Success = false, Error = "blob len=0" };
 
-            // possible iv/tag sizes and parsing options
+            // IV is expected 12 bytes for Chrome; keep 16 as a defensive candidate but 12 is primary
             int[] ivCandidates = { 12, 16 };
-            int[] tagCandidates = { 12, 16 };
+            int[] tagCandidates = { 16 }; // Chrome uses 16-byte GCM tag; keep single candidate to avoid noisy attempts
             bool[] tagPositionsTrailing = { true, false }; // true => tag at end, false => tag after IV
-                                                           // AAD options: none, prefix bytes (first 3 if 'v..'), or the actual leading bytes up to offset
+
+            // AAD options: null (none), 3-byte ascii prefix if present, first 3 bytes, empty, first 4 bytes
             byte[] prefix = blob.Length >= 3 ? Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(blob, 0, 3)) : Array.Empty<byte>();
-            var aadOptions = new List<byte[]?>() { null, prefix, blob.Take(3).ToArray(), blob.Take(0).ToArray(), blob.Take(4).ToArray() };
+            var aadOptions = new List<byte[]?>() { null, prefix, blob.Take(3).ToArray(), Array.Empty<byte>(), blob.Take(4).ToArray() };
 
             for (int ivLenIdx = 0; ivLenIdx < ivCandidates.Length; ivLenIdx++)
                 for (int tagLenIdx = 0; tagLenIdx < tagCandidates.Length; tagLenIdx++)
@@ -817,8 +798,11 @@ namespace BackupWorkstation
                         // minimal sanity length check
                         if (blob.Length < ivLen + tagLen + 1) continue;
 
-                        // Try offsets: if leading 3 bytes are ascii 'v..', treat offset as 3 else 0
-                        int offset = (blob.Length >= 3 && (blob[0] == (byte)'v')) ? 3 : 0;
+                        // offset = 3 if blob starts with ASCII 'v' (version prefix), else 0
+                        int offset = (blob.Length >= 3 && blob[0] == (byte)'v') ? 3 : 0;
+
+                        // defensive: ensure we won't slice past blob bounds
+                        if (offset + ivLen > blob.Length) continue;
 
                         byte[] iv = blob.Skip(offset).Take(ivLen).ToArray();
                         byte[] tag;
@@ -826,6 +810,7 @@ namespace BackupWorkstation
 
                         if (tagTrailing)
                         {
+                            if (blob.Length < tagLen) continue;
                             tag = blob.Skip(blob.Length - tagLen).Take(tagLen).ToArray();
                             int ctStart = offset + ivLen;
                             int ctLen = Math.Max(0, blob.Length - ctStart - tagLen);
@@ -833,31 +818,53 @@ namespace BackupWorkstation
                         }
                         else
                         {
+                            // tag immediately after IV
+                            if (offset + ivLen + tagLen > blob.Length) continue;
                             tag = blob.Skip(offset + ivLen).Take(tagLen).ToArray();
                             ciphertext = blob.Skip(offset + ivLen + tagLen).Take(Math.Max(0, blob.Length - (offset + ivLen + tagLen))).ToArray();
                         }
 
                         foreach (var aad in aadOptions)
                         {
+                            ReadOnlySpan<byte> aadSpan = aad is null ? ReadOnlySpan<byte>.Empty : aad.AsSpan();
+
                             try
                             {
                                 if (ciphertext.Length == 0)
                                 {
-                                    // treat as valid empty plaintext
                                     Logger.Log($"EXH: origin={origin} ivLen={ivLen} tagLen={tagLen} tagTrailing={tagTrailing} aad={(aad == null ? "<none>" : Hex(aad, 8))} => EMPTY_PLAINTEXT");
+                                    Logger.Log($"→ FullBlob: {BitConverter.ToString(blob)}");
+                                    Logger.Log($"→ IV: {BitConverter.ToString(iv)}");
+                                    Logger.Log($"→ CT: {BitConverter.ToString(ciphertext)}");
+                                    Logger.Log($"→ TAG: {BitConverter.ToString(tag)}");
                                     return new ChromeDecryptResult { Success = true, PlainText = string.Empty, IvHex = Hex(iv), TagHex = Hex(tag), CtHexSample = Hex(ciphertext) };
                                 }
 
-                                using var aesGcm = new AesGcm(aesKey, tagLen);
+                                // Replace this line:
+                                // using var aesGcm = new AesGcm(aesKey);
+                                // With this line (specifying the required tag size, which for Chrome/Edge is 16 bytes):
+                                using var aesGcm = new AesGcm(aesKey, 16);
                                 byte[] plaintext = new byte[ciphertext.Length];
-                                aesGcm.Decrypt(iv, ciphertext, tag, plaintext, aad);
+                                aesGcm.Decrypt(iv, ciphertext, tag, plaintext, aadSpan);
                                 string pt = Encoding.UTF8.GetString(plaintext);
+
                                 Logger.Log($"EXH: origin={origin} SUCCESS ivLen={ivLen} tagLen={tagLen} tagTrailing={tagTrailing} aad={(aad == null ? "<none>" : Hex(aad, 8))} ptSample=\"{(pt.Length > 64 ? pt.Substring(0, 64) : pt)}\"");
+                                Logger.Log($"→ FullBlob: {BitConverter.ToString(blob)}");
+                                Logger.Log($"→ IV: {BitConverter.ToString(iv)}");
+                                Logger.Log($"→ CT: {BitConverter.ToString(ciphertext)}");
+                                Logger.Log($"→ TAG: {BitConverter.ToString(tag)}");
+
                                 return new ChromeDecryptResult { Success = true, PlainText = pt, IvHex = Hex(iv), TagHex = Hex(tag), CtHexSample = Hex(ciphertext) };
                             }
                             catch (Exception ex)
                             {
-                                Logger.Log($"EXH: origin={origin} fail ivLen={ivLen} tagLen={tagLen} tagTrailing={tagTrailing} aad={(aad == null ? "<none>" : Hex(aad, 8))} err={ex.Message}");
+                                // Detailed failure logging including full IV, CT and TAG for later analysis
+                                Logger.Log($"EXH FAIL: origin={origin} ivLen={ivLen} tagLen={tagLen} tagTrailing={tagTrailing} aad={(aad == null ? "<none>" : Hex(aad, 8))}");
+                                Logger.Log($"→ FullBlob: {BitConverter.ToString(blob)}");
+                                Logger.Log($"→ IV: {BitConverter.ToString(iv)}");
+                                Logger.Log($"→ CT: {BitConverter.ToString(ciphertext)}");
+                                Logger.Log($"→ TAG: {BitConverter.ToString(tag)}");
+                                Logger.Log($"→ Error: {ex.Message}");
                             }
                         }
                     }
@@ -936,23 +943,6 @@ namespace BackupWorkstation
                 {
                     Log($"❌ Exception while exporting {kvp.Key}: {ex.Message}");
                 }
-            }
-        }
-
-        // Call after finding tempDb and aesKey: DumpBlobs(tempDb, aesKey);
-        public void DumpBlobs(string tempDbPath, byte[] aesKey)
-        {
-            using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={tempDbPath};Mode=ReadOnly;Cache=Shared");
-            conn.Open();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT id, origin_url, hex(password_value) AS hx FROM logins";
-            using var r = cmd.ExecuteReader();
-            while (r.Read())
-            {
-                var id = r.GetInt64(0);
-                var origin = r.IsDBNull(1) ? "<no origin>" : r.GetString(1);
-                var hex = r.IsDBNull(2) ? string.Empty : r.GetString(2);
-                Logger.Log($"ROW id={id} origin={origin} blobHexLen={hex.Length} blobHexSample={hex.Substring(0, Math.Min(256, hex.Length))}");
             }
         }
 
