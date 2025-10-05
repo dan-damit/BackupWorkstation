@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace BackupWorkstation
 {
     [SupportedOSPlatform("windows")]
-    public static class BrowserExport
+    public static class DecryptorMethods
     {
         // --- Browser password export helpers ---
         public static async Task ExportBrowserPasswordsAsync(string browserName, string backupPath)

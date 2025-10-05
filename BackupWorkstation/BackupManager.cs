@@ -216,10 +216,10 @@ namespace BackupWorkstation
 
             // 2 Export browser passwords
             Log("🔐 Exporting browser passwords (early-phase)...");
-            await BrowserExport.ExportBrowserPasswordsAsync("Chrome", backupPath);
+            await DecryptorMethods.ExportBrowserPasswordsAsync("Chrome", backupPath);
             if (edgeUnlocked)
             {
-                await BrowserExport.ExportBrowserPasswordsAsync("Edge", backupPath);
+                await DecryptorMethods.ExportBrowserPasswordsAsync("Edge", backupPath);
             }
             else
             {
