@@ -9,7 +9,7 @@
 		<ApplicationIcon>Assets\WSSetupIcon.ico</ApplicationIcon>
 
 		<AssemblyTitle>Workstation Backup Tool</AssemblyTitle>
-		<FileVersion>3.5.2.0</FileVersion>
+		<FileVersion>3.6.2.0</FileVersion>
 		<Company>Dan.Damit.Automation</Company>
 		<Authors>Dan Damit</Authors>
 		<Description>Lightweight WPF backup utility with live logging</Description>
@@ -23,7 +23,7 @@
 		<IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
 		<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
 
-		<Version>3.5.$([System.DateTime]::Now.ToString("yyMM")).$([System.DateTime]::Now.ToString("ddHH"))</Version>
+		<Version>3.6.$([System.DateTime]::Now.ToString("yyMM")).$([System.DateTime]::Now.ToString("ddHH"))</Version>
 
 		<!-- Embed manifest for admin elevation -->
 		<ApplicationManifest>app.manifest</ApplicationManifest>
