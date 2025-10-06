@@ -76,6 +76,10 @@
                                Margin="0,0,15,0" />
                     <TextBox x:Name="txtUsername"
                              Width="350" />
+                    <Button x:Name="btnResetSourceUser"
+                            Content="Reset"
+                            Margin="5,0,0,0"
+                            ToolTip="Clear auto-seeded Source Username"/>
                 </StackPanel>
 
                 <!-- Live Log with watermark overlay -->

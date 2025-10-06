@@ -14,18 +14,17 @@ namespace BackupWorkstation
         static string? _manifestPath;
 
         public static void Initialize(string backupRootPath)
-        {
-            _manifestPath = Path.Combine(backupRootPath, "backup_manifest.txt");
-        }
+            => _manifestPath = Path.Combine(backupRootPath, "backup_manifest.txt");
 
-        public static void Append(string key, string value)
+        public static void Append(string key, string? value)
         {
             if (string.IsNullOrEmpty(_manifestPath))
-                throw new InvalidOperationException("ManifestWriter not initialized. Call Initialize(...) first.");
+                throw new InvalidOperationException("ManifestWriter not initialized.");
 
             lock (_lock)
             {
-                File.AppendAllText(_manifestPath, $"{DateTime.UtcNow:O}\t{key}\t{value}{Environment.NewLine}");
+                File.AppendAllText(_manifestPath,
+                    $"{DateTime.UtcNow:O}\t{key}\t{value ?? string.Empty}{Environment.NewLine}");
             }
         }
     }

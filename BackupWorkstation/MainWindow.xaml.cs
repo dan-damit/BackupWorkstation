@@ -5,8 +5,10 @@ using System.Collections.ObjectModel;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using static BackupWorkstation.BackupManager;
 
 namespace BackupWorkstation
 {
@@ -16,6 +18,8 @@ namespace BackupWorkstation
         // Fields
         private ObservableCollection<string> _logEntries = new ObservableCollection<string>();
         private BackupManager _backupManager;
+        private bool _sourceUserEditedByUser;
+        private string? _autoSeedSourceUser;
 
         // Constructor
         public MainWindow()
@@ -51,6 +55,34 @@ namespace BackupWorkstation
             {
                 txtBackupPath.Text = dlg.FileName;
             }
+        }
+
+        // On window load, populate current user info
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            _autoSeedSourceUser = CurrentUserInfo.GetUserPrincipal();
+            txtUsername.Text = _autoSeedSourceUser;
+            ManifestWriter.Append("source_user_autoseed", _autoSeedSourceUser);
+            ManifestWriter.Append("source_sid", CurrentUserInfo.GetUserSid());
+
+            txtUsername.TextChanged += TxtUsername_TextChanged;
+            btnResetSourceUser.Click += BtnResetSourceUser_Click;
+        }
+
+        private void TxtUsername_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // If the current text differs from the auto-seed, mark as edited.
+            _sourceUserEditedByUser = !string.Equals(txtUsername.Text, _autoSeedSourceUser, StringComparison.Ordinal);
+            // Optionally record the override immediately or wait until save/run.
+            if (_sourceUserEditedByUser)
+                ManifestWriter.Append("source_user_override_temp", txtUsername.Text);
+        }
+
+        private void BtnResetSourceUser_Click(object sender, RoutedEventArgs e)
+        {
+            txtUsername.Text = _autoSeedSourceUser;
+            _sourceUserEditedByUser = false;
+            ManifestWriter.Append("source_user_reset", _autoSeedSourceUser);
         }
 
         // Start the backup process

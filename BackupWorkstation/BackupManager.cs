@@ -8,6 +8,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -265,6 +266,26 @@ namespace BackupWorkstation
 
             Logger.Log("✅ Backup complete.");
             ProgressChanged?.Invoke(_totalFiles, _totalFiles, "Backup Complete");
+        }
+
+        // --- Current user info helpers ---
+        public static class CurrentUserInfo
+        {
+            public static string GetUserPrincipal()
+            {
+                try { return WindowsIdentity.GetCurrent()?.Name ?? Environment.UserName; }
+                catch { return Environment.UserName; }
+            }
+
+            public static string GetUserSid()
+            {
+                try
+                {
+                    var id = WindowsIdentity.GetCurrent()?.User;
+                    return id?.Value ?? string.Empty;
+                }
+                catch { return string.Empty; }
+            }
         }
 
         // --- Test if path is accessible ---
