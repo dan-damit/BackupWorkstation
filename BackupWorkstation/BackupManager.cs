@@ -14,6 +14,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using static BackupWorkstation.DecryptorMethods;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
 
 namespace BackupWorkstation
@@ -92,6 +93,11 @@ namespace BackupWorkstation
             // Always have a logger target, even if backupRoot is inaccessible
             string tempLogPath = Path.Combine(Path.GetTempPath(), "BackupWorkstation_startup_log.txt");
             Logger.Init(tempLogPath);
+
+            ManifestWriter.Initialize(backupRoot);
+            ManifestWriter.Append("manifest_initialized", backupRoot);
+            ManifestWriter.Append("source_user_final", sourceUser);
+            ManifestWriter.Append("source_sid", CurrentUserInfo.GetUserSid());
 
             var normalizedRoot = NormalizePath(backupRoot);
             var parentPath = GetParentPath(normalizedRoot);

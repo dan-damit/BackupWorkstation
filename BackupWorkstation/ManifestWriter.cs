@@ -13,8 +13,8 @@ namespace BackupWorkstation
         static readonly object _lock = new();
         static string? _manifestPath;
 
-        public static void Initialize(string backupRootPath)
-            => _manifestPath = Path.Combine(backupRootPath, "backup_manifest.txt");
+        public static void Initialize(string backupRoot)
+            => _manifestPath = Path.Combine(backupRoot, "backup_manifest.txt");
 
         public static void Append(string key, string? value)
         {

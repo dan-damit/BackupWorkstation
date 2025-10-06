@@ -6,105 +6,111 @@
         Height="400"
         Width="600"
         WindowStyle="None"
+        ResizeMode="CanResize"
         AllowsTransparency="False"
         Background="{StaticResource WindowBackgroundBrush}">
 
-    <!-- Outer border for the whole window -->
-    <Border BorderBrush="{StaticResource ControlBorderBrush}"
-            BorderThickness="2">
-        <Grid>
+    <Grid Margin="0">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300" />
+            <ColumnDefinition />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <!-- Title bar -->
+            <RowDefinition Height="*" />
+            <!-- Content -->
+        </Grid.RowDefinitions>
+
+        <!-- Custom title bar -->
+        <Border Background="{StaticResource AccentBrush}"
+                Height="Auto"
+                Grid.Row="0"
+                Padding="0"
+                MouseDown="TitleBar_MouseDown"
+                Grid.ColumnSpan="2">
+            <DockPanel LastChildFill="True"
+                       Margin="0">
+                <TextBlock Text="Workstation Backup Tool"
+                           Foreground="White"
+                           VerticalAlignment="Center"
+                           Margin="10,0,0,0"
+                           FontWeight="Bold" />
+                <Button Content="X"
+                        Width="32"
+                        Height="32"
+                        Background="Transparent"
+                        Foreground="White"
+                        BorderThickness="0"
+                        HorizontalAlignment="Right"
+                        Click="Close_Click" />
+            </DockPanel>
+        </Border>
+
+        <!-- Main content -->
+        <Grid Grid.Row="1"
+              Margin="10,10,10,10"
+              Grid.ColumnSpan="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <!-- Title bar -->
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
-                <!-- Content -->
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- Custom title bar -->
-            <Border Background="{StaticResource AccentBrush}"
-                    Height="32"
-                    Grid.Row="0">
-                <DockPanel LastChildFill="True"
-                           MouseDown="TitleBar_MouseDown">
-                    <TextBlock Text="Workstation Backup Tool"
-                               Foreground="White"
-                               VerticalAlignment="Center"
-                               Margin="10,0,0,0"
-                               FontWeight="Bold" />
-                    <Button Content="X"
-                            Width="32"
-                            Height="32"
-                            Background="Transparent"
-                            Foreground="White"
-                            BorderThickness="0"
-                            HorizontalAlignment="Right"
-                            Click="Close_Click" />
-                </DockPanel>
-            </Border>
+            <!-- Input Fields -->
+            <StackPanel Orientation="Horizontal"
+                        Margin="0,0,0,5">
+                <TextBlock Text="Backup Destination:"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource TextBrush}"
+                           Margin="0,0,5,0" />
+                <TextBox x:Name="txtBackupPath"
+                         Width="350"
+                         Margin="0,0,5,0" />
+                <Button x:Name="btnBrowse"
+                        Content="Browse..."
+                        Width="75"
+                        Click="btnBrowse_Click" />
+            </StackPanel>
 
-            <!-- Main content -->
-            <Grid Grid.Row="1"
-                  Margin="10">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+            <StackPanel Orientation="Horizontal"
+                        Grid.Row="1"
+                        Margin="0,0,0,5">
+                <TextBlock Text="Source Username:"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource TextBrush}"
+                           Margin="0,0,15,0" />
+                <TextBox x:Name="txtUsername"
+                         Width="350"
+                         Margin="0,0,5,0" />
+                <Button x:Name="btnResetSourceUser"
+                        Content="Reset"
+                        Width="75"
+                        ToolTip="Clear field back to the auto-seeded Source Username" />
+            </StackPanel>
 
-                <!-- Input Fields -->
-                <StackPanel Orientation="Horizontal"
-                            Margin="0,0,0,5">
-                    <TextBlock Text="Backup Destination:"
-                               VerticalAlignment="Center"
-                               Foreground="{StaticResource TextBrush}"
-                               Margin="0,0,5,0" />
-                    <TextBox x:Name="txtBackupPath"
-                             Width="350"
-                             Margin="0,0,5,0" />
-                    <Button x:Name="btnBrowse"
-                            Content="Browse..."
-                            Width="75"
-                            Click="btnBrowse_Click" />
-                </StackPanel>
-
-                <StackPanel Orientation="Horizontal"
-                            Grid.Row="1"
-                            Margin="0,0,0,5">
-                    <TextBlock Text="Source Username:"
-                               VerticalAlignment="Center"
-                               Foreground="{StaticResource TextBrush}"
-                               Margin="0,0,15,0" />
-                    <TextBox x:Name="txtUsername"
-                             Width="350" />
-                    <Button x:Name="btnResetSourceUser"
-                            Content="Reset"
-                            Margin="5,0,0,0"
-                            ToolTip="Clear field back to the auto-seeded Source Username"/>
-                </StackPanel>
-
-                <!-- Live Log with watermark overlay -->
-                <Grid Grid.Row="2">
-                    <ListBox x:Name="lstLog"
-                             FontFamily="Consolas"
-                             Background="{StaticResource ControlBackgroundBrush}"
-                             Foreground="{StaticResource TextBrush}" />
-                </Grid>
-
-                <!-- Progress + Start -->
-                <StackPanel Orientation="Horizontal"
-                            Grid.Row="3"
-                            Margin="0,5,0,0">
-                    <ProgressBar x:Name="progressBar"
-                                 Width="400"
-                                 Height="20"
-                                 Margin="0,0,25,0" />
-                    <Button x:Name="btnStartBackup"
-                            Content="Start Backup"
-                            Width="120"
-                            Click="btnStartBackup_Click" />
-                </StackPanel>
+            <!-- Live Log with watermark overlay -->
+            <Grid Grid.Row="2">
+                <ListBox x:Name="lstLog"
+                         FontFamily="Consolas"
+                         Background="{StaticResource ControlBackgroundBrush}"
+                         Foreground="{StaticResource TextBrush}" />
             </Grid>
+
+            <!-- Progress + Start -->
+            <StackPanel Orientation="Horizontal"
+                        Grid.Row="3"
+                        Margin="0,5,0,0">
+                <ProgressBar x:Name="progressBar"
+                             Width="400"
+                             Height="20"
+                             Margin="0,0,25,0" />
+                <Button x:Name="btnStartBackup"
+                        Content="Start Backup"
+                        Width="120"
+                        Click="btnStartBackup_Click" />
+            </StackPanel>
         </Grid>
-    </Border>
+    </Grid>
 </Window>

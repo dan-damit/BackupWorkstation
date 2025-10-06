@@ -62,8 +62,6 @@ namespace BackupWorkstation
         {
             _autoSeedSourceUser = CurrentUserInfo.GetUserPrincipal();
             txtUsername.Text = _autoSeedSourceUser;
-            ManifestWriter.Append("source_user_autoseed", _autoSeedSourceUser);
-            ManifestWriter.Append("source_sid", CurrentUserInfo.GetUserSid());
 
             txtUsername.TextChanged += TxtUsername_TextChanged;
             btnResetSourceUser.Click += BtnResetSourceUser_Click;
