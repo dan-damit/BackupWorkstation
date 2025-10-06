@@ -12,6 +12,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
+using static BackupWorkstation.DecryptorMethods;
 
 
 namespace BackupWorkstation
@@ -44,7 +45,7 @@ namespace BackupWorkstation
             public string lpProvider;
         }
 
-        // --- Check if we can open a file exclusively (i.e., not locked) ---
+        // --- Check if a file can be opened exclusively (i.e., not locked) ---
         private bool TryOpenExclusive(string path)
         {
             try
@@ -95,6 +96,7 @@ namespace BackupWorkstation
             var parentPath = GetParentPath(normalizedRoot);
 
             // Preflight against the parent (since the final folder may not exist yet)
+            // If inaccessible, prompt for credentials and attempt connection
             if (!TestPathAccess(parentPath))
             {
                 Log($"⚠ Cannot access '{parentPath}'. Prompting for credentials...");
@@ -114,6 +116,16 @@ namespace BackupWorkstation
                     return;
                 }
             }
+
+            // Preflight DPAPI readiness check
+            // This is crucial for decrypting browser passwords
+            Log("🔐 Preflight: DPAPI readiness check...");
+            bool dpapiOk = DpapiDiagnostics.CheckDpapiReadiness(out string dpapiMsg);
+            Log(dpapiMsg);
+
+            // Optional manifest logging
+            ManifestWriter.Append("dpapi_readiness", dpapiOk ? "ok" : "warning");
+            ManifestWriter.Append("dpapi_message", dpapiMsg);
 
             // Ensure the final target directory exists (create if missing; OK if it already exists)
             if (!EnsureTargetRootReady(normalizedRoot))

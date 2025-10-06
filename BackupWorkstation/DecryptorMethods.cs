@@ -87,6 +87,7 @@ namespace BackupWorkstation
                     if (diag.Success)
                     {
                         decryptedCount++;
+                        exported++;
                         // diag.PlainText may be empty for blank passwords
                         password = diag.PlainText ?? string.Empty;
                     }
@@ -357,6 +358,32 @@ namespace BackupWorkstation
                         }
                     }
             return new ChromeDecryptResult { Success = false, Error = "exhaustive variants failed" };
+        }
+
+        // --- DPAPI diagnostics ---
+        // Call: DpapiDiagnostics.CheckDpapiReadiness(out string message)
+        // Returns: bool success, and out message with details
+        public static class DpapiDiagnostics
+        {
+            public static bool CheckDpapiReadiness(out string message)
+            {
+                try
+                {
+                    byte[] testData = Encoding.UTF8.GetBytes("DPAPI test");
+                    byte[] encrypted = ProtectedData.Protect(testData, null, DataProtectionScope.CurrentUser);
+                    byte[] decrypted = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
+
+                    bool success = Encoding.UTF8.GetString(decrypted) == "DPAPI test";
+                    message = success ? "✅ DPAPI appears functional for the current user." :
+                                        "⚠️ DPAPI test completed but returned unexpected result.";
+                    return success;
+                }
+                catch (Exception ex)
+                {
+                    message = $"❌ DPAPI unwrap failed — account may be passwordless, corrupted, or misconfigured. Exception: {ex.Message}";
+                    return false;
+                }
+            }
         }
     }
 }
