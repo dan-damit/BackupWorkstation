@@ -10,8 +10,7 @@
 
     <!-- Outer border for the whole window -->
     <Border BorderBrush="{StaticResource ControlBorderBrush}"
-            BorderThickness="2"
-            CornerRadius="6">
+            BorderThickness="2">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -62,9 +61,10 @@
                     <TextBox x:Name="txtBackupPath"
                              Width="350"
                              Margin="0,0,5,0" />
-                    <Button Content="Browse..."
+                    <Button x:Name="btnBrowse"
+                            Content="Browse..."
                             Width="75"
-                            Click="Browse_Click" />
+                            Click="btnBrowse_Click" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal"
@@ -79,7 +79,7 @@
                     <Button x:Name="btnResetSourceUser"
                             Content="Reset"
                             Margin="5,0,0,0"
-                            ToolTip="Clear auto-seeded Source Username"/>
+                            ToolTip="Clear field back to the auto-seeded Source Username"/>
                 </StackPanel>
 
                 <!-- Live Log with watermark overlay -->
@@ -98,9 +98,10 @@
                                  Width="400"
                                  Height="20"
                                  Margin="0,0,25,0" />
-                    <Button Content="Start Backup"
+                    <Button x:Name="btnStartBackup"
+                            Content="Start Backup"
                             Width="120"
-                            Click="StartBackup_Click" />
+                            Click="btnStartBackup_Click" />
                 </StackPanel>
             </Grid>
         </Grid>

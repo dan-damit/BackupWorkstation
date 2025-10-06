@@ -43,7 +43,7 @@ namespace BackupWorkstation
         }
 
         // Browse for backup destination folder
-        private void Browse_Click(object sender, RoutedEventArgs e)
+        private void btnBrowse_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new CommonOpenFileDialog
             {
@@ -69,6 +69,7 @@ namespace BackupWorkstation
             btnResetSourceUser.Click += BtnResetSourceUser_Click;
         }
 
+        // Track if user has modified the source username
         private void TxtUsername_TextChanged(object sender, TextChangedEventArgs e)
         {
             // If the current text differs from the auto-seed, mark as edited.
@@ -78,6 +79,7 @@ namespace BackupWorkstation
                 ManifestWriter.Append("source_user_override_temp", txtUsername.Text);
         }
 
+        // Reset the source username to the auto-detected value
         private void BtnResetSourceUser_Click(object sender, RoutedEventArgs e)
         {
             txtUsername.Text = _autoSeedSourceUser;
@@ -86,7 +88,7 @@ namespace BackupWorkstation
         }
 
         // Start the backup process
-        private async void StartBackup_Click(object sender, RoutedEventArgs e)
+        private async void btnStartBackup_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtBackupPath.Text) || string.IsNullOrWhiteSpace(txtUsername.Text))
             {
@@ -94,10 +96,27 @@ namespace BackupWorkstation
                 return;
             }
 
+            // UI preflight
+            btnStartBackup.IsEnabled = false;
+            this.Cursor = Cursors.Wait;
             _logEntries.Clear();
             progressBar.Value = 0;
 
-            await _backupManager.RunBackupAsync(txtUsername.Text, txtBackupPath.Text);
+            try
+            {
+                // Run backup (optionally pass a cancellation token later)
+                await _backupManager.RunBackupAsync(txtUsername.Text, txtBackupPath.Text);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Backup failed: " + ex.Message);
+            }
+            finally
+            {
+                // restore UI
+                btnStartBackup.IsEnabled = true;
+                this.Cursor = Cursors.Arrow;
+            }
         }
 
         // Update log messages in the UI
