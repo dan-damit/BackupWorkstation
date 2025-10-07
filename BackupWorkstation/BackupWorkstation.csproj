@@ -9,7 +9,7 @@
 		<ApplicationIcon>Assets\WSSetupIcon.ico</ApplicationIcon>
 
 		<AssemblyTitle>Workstation Backup Tool</AssemblyTitle>
-		<FileVersion>3.6.7.0</FileVersion>
+		<FileVersion>3.6.8.0</FileVersion>
 		<Company>Dan.Damit.Automation</Company>
 		<Authors>Dan Damit</Authors>
 		<Description>Lightweight WPF backup utility with live logging</Description>

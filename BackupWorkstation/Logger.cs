@@ -11,6 +11,7 @@ namespace BackupWorkstation
     {
         // Fields
         private static string _logFilePath = string.Empty;
+        public static event Action<string>? LogMessageReceived;
 
         // Initialization log file
         public static void Init(string logFilePath)
@@ -25,6 +26,11 @@ namespace BackupWorkstation
         {
             string line = $"[{DateTime.Now:HH:mm:ss}] {message}";
             File.AppendAllText(_logFilePath, line + Environment.NewLine);
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                LogMessageReceived?.Invoke(line);
+            });
         }
     }
 }

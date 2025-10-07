@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using static BackupWorkstation.BackupManager;
+using static BackupWorkstation.Logger;
 
 namespace BackupWorkstation
 {
@@ -28,6 +29,7 @@ namespace BackupWorkstation
             InitializeComponent();
             lstLog.ItemsSource = _logEntries;
 
+            Logger.LogMessageReceived += OnLogMessage;
             _backupManager = new BackupManager();
             _backupManager.ProgressChanged += OnProgressChanged;
         }
@@ -120,11 +122,11 @@ namespace BackupWorkstation
         // Update log messages in the UI
         private void OnLogMessage(string message)
         {
-            Dispatcher.Invoke(() =>
+            _logEntries.Add(message);
+            if (lstLog.Items.Count > 0)
             {
-                _logEntries.Add(message);
-                lstLog.ScrollIntoView(message);
-            });
+                lstLog.ScrollIntoView(lstLog.Items[lstLog.Items.Count - 1]);
+            }
         }
 
         // Update progress bar and window title
