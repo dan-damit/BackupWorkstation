@@ -70,5 +70,13 @@
             <Setter Property="FontFamily"
                     Value="Consolas" />
         </Style>
+        
+        <!-- Drop Shadow Effect -->
+        <DropShadowEffect x:Key="DropShadowEffectResource"
+                          Color="Black"
+                          Direction="270"
+                          ShadowDepth="0"
+                          Opacity="0.5"
+                          BlurRadius="10" />
     </Application.Resources>
 </Application>
