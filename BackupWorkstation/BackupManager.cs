@@ -14,7 +14,6 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using static BackupWorkstation.DecryptorMethods;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
 
 namespace BackupWorkstation
@@ -23,7 +22,6 @@ namespace BackupWorkstation
     public class BackupManager
     {
         // Events
-        public event Action<string>? LogMessage;
         public event Action<int, int, string>? ProgressChanged;
 
         // Fields
@@ -57,7 +55,7 @@ namespace BackupWorkstation
             }
             catch (Exception ex)
             {
-                Log($"🔒 File locked or inaccessible: {path} - {ex.Message}");
+                Logger.Log($"🔒 File locked or inaccessible: {path} - {ex.Message}");
                 return false;
             }
         }
@@ -67,7 +65,7 @@ namespace BackupWorkstation
         {
             if (!File.Exists(path))
             {
-                Log($"ℹ File not present (skipping lock check): {path}");
+                Logger.Log($"ℹ File not present (skipping lock check): {path}");
                 return true;
             }
 
@@ -75,15 +73,15 @@ namespace BackupWorkstation
             {
                 if (TryOpenExclusive(path))
                 {
-                    Log($"✔ Exclusive access obtained for: {path}");
+                    Logger.Log($"✔ Exclusive access obtained for: {path}");
                     return true;
                 }
 
-                Log($"⏳ Waiting for file unlock ({attempt}/{maxAttempts}): {path}");
+                Logger.Log($"⏳ Waiting for file unlock ({attempt}/{maxAttempts}): {path}");
                 Thread.Sleep(delayMs);
             }
 
-            Log($"❌ Could not obtain exclusive access to: {path} after {maxAttempts} attempts.");
+            Logger.Log($"❌ Could not obtain exclusive access to: {path} after {maxAttempts} attempts.");
             return false;
         }
 
@@ -94,7 +92,7 @@ namespace BackupWorkstation
             string tempLogPath = Path.Combine(Path.GetTempPath(), "BackupWorkstation_startup_log.txt");
             Logger.Init(tempLogPath);
 
-            ManifestWriter.Initialize(backupRoot);
+            // Manifest initialization
             ManifestWriter.Append("manifest_initialized", backupRoot);
             ManifestWriter.Append("source_user_final", sourceUser);
             ManifestWriter.Append("source_sid", CurrentUserInfo.GetUserSid());
@@ -106,29 +104,29 @@ namespace BackupWorkstation
             // If inaccessible, prompt for credentials and attempt connection
             if (!TestPathAccess(parentPath))
             {
-                Log($"⚠ Cannot access '{parentPath}'. Prompting for credentials...");
+                Logger.Log($"⚠ Cannot access '{parentPath}'. Prompting for credentials...");
                 var creds = PromptForCredentials(parentPath);
                 if (creds.HasValue)
                 {
                     if (!ConnectToShare(parentPath, creds.Value.user, creds.Value.pass))
                     {
-                        Log("❌ Could not connect to network share with provided credentials. Backup aborted.");
+                        Logger.Log("❌ Could not connect to network share with provided credentials. Backup aborted.");
                         return;
                     }
-                    Log("🔑 Network share connected successfully.");
+                    Logger.Log("🔑 Network share connected successfully.");
                 }
                 else
                 {
-                    Log("❌ Backup cancelled — no credentials provided.");
+                    Logger.Log("❌ Backup cancelled — no credentials provided.");
                     return;
                 }
             }
 
             // Preflight DPAPI readiness check
             // This is crucial for decrypting browser passwords
-            Log("🔐 Preflight: DPAPI readiness check...");
+            Logger.Log("🔐 Preflight: DPAPI readiness check...");
             bool dpapiOk = DpapiDiagnostics.CheckDpapiReadiness(out string dpapiMsg);
-            Log(dpapiMsg);
+            Logger.Log(dpapiMsg);
 
             // Optional manifest logging
             ManifestWriter.Append("dpapi_readiness", dpapiOk ? "ok" : "warning");
@@ -142,7 +140,7 @@ namespace BackupWorkstation
             string? userProfile = ResolveUserProfilePath(sourceUser);
             if (userProfile == null)
             {
-                Log($"❌ Could not find a profile folder for '{sourceUser}'. Backup aborted.");
+                Logger.Log($"❌ Could not find a profile folder for '{sourceUser}'. Backup aborted.");
                 return;
             }
 
@@ -164,14 +162,14 @@ namespace BackupWorkstation
             // Wait for exclusive access to critical DBs (chrome required; edge optional)
             if (!EnsureUnlocked(loginDataChrome))
             {
-                Log("❌ Aborting backup: Chrome Login Data locked. Consider stopping Chrome and re-running backup.");
+                Logger.Log("❌ Aborting backup: Chrome Login Data locked. Consider stopping Chrome and re-running backup.");
                 return;
             }
 
             bool edgeUnlocked = EnsureUnlocked(loginDataEdge);
             if (!edgeUnlocked)
             {
-                Log("⚠ Edge Login Data locked or not present. Edge password export will be skipped.");
+                Logger.Log("⚠ Edge Login Data locked or not present. Edge password export will be skipped.");
             }
 
             // 🔹 Collect tech info (after locks verified)
@@ -231,10 +229,10 @@ namespace BackupWorkstation
             _filesCopied = 0;
             _totalFiles = CountAllFiles(userProfile, profileDirs, appDataDirs, extraDirs);
 
-            Log($"📊 Found {_totalFiles} files to back up.");
+            Logger.Log($"📊 Found {_totalFiles} files to back up.");
 
             // 2 Export browser passwords
-            Log("🔐 Exporting browser passwords (early-phase)...");
+            Logger.Log("🔐 Exporting browser passwords (early-phase)...");
             await DecryptorMethods.ExportBrowserPasswordsAsync("Chrome", backupPath);
             if (edgeUnlocked)
             {
@@ -242,7 +240,7 @@ namespace BackupWorkstation
             }
             else
             {
-                Log("⚠ Skipped Edge password export due to locked/missing Login Data.");
+                Logger.Log("⚠ Skipped Edge password export due to locked/missing Login Data.");
             }
 
             // 3 Copy profile directories
@@ -339,7 +337,7 @@ namespace BackupWorkstation
             // 1) Ensure we can access the parent (prompt/connect if needed happens in caller)
             if (!TestPathAccess(parent))
             {
-                Log($"❌ Cannot access parent directory '{parent}'.");
+                Logger.Log($"❌ Cannot access parent directory '{parent}'.");
                 return false;
             }
 
@@ -347,12 +345,12 @@ namespace BackupWorkstation
             try
             {
                 Directory.CreateDirectory(normalized);
-                Log($"📁 Target directory ready: '{normalized}'");
+                Logger.Log($"📁 Target directory ready: '{normalized}'");
                 return true;
             }
             catch (Exception ex)
             {
-                Log($"❌ Failed to create target directory '{normalized}': {ex.Message}");
+                Logger.Log($"❌ Failed to create target directory '{normalized}': {ex.Message}");
                 return false;
             }
         }
@@ -428,12 +426,12 @@ namespace BackupWorkstation
                 }
                 catch (Exception ex)
                 {
-                    Log($"⚠ Skipped '{source}' during file count: {ex.Message}");
+                    Logger.Log($"⚠ Skipped '{source}' during file count: {ex.Message}");
                 }
             }
             else if (IsReparsePoint(source))
             {
-                Log($"⚠ Skipped reparse point '{source}' during file count.");
+                Logger.Log($"⚠ Skipped reparse point '{source}' during file count.");
             }
             return 0;
         }
@@ -444,11 +442,11 @@ namespace BackupWorkstation
             if (Directory.Exists(source))
             {
                 await Task.Run(() => CopyDirectory(source, destination));
-                Log($"✔ Copied '{source}'");
+                Logger.Log($"✔ Copied '{source}'");
             }
             else
             {
-                Log($"⚠ Skipped '{source}' (not found)");
+                Logger.Log($"⚠ Skipped '{source}' (not found)");
             }
         }
 
@@ -457,7 +455,7 @@ namespace BackupWorkstation
         {
             if (IsReparsePoint(sourceDir))
             {
-                Log($"⚠ Skipped reparse point '{sourceDir}' during copy.");
+                Logger.Log($"⚠ Skipped reparse point '{sourceDir}' during copy.");
                 return;
             }
 
@@ -467,7 +465,7 @@ namespace BackupWorkstation
             }
             catch (IOException ex)
             {
-                Log($"❌ Failed to create backup directory: {ex.Message}");
+                Logger.Log($"❌ Failed to create backup directory: {ex.Message}");
                 return;
             }
 
@@ -478,7 +476,7 @@ namespace BackupWorkstation
             }
             catch (Exception ex)
             {
-                Log($"⚠ Failed to enumerate files in '{sourceDir}': {ex.Message}");
+                Logger.Log($"⚠ Failed to enumerate files in '{sourceDir}': {ex.Message}");
                 return;
             }
 
@@ -496,7 +494,7 @@ namespace BackupWorkstation
                     }
                     catch (Exception ex)
                     {
-                        Log($"⚠ Failed to create directory '{dirName}': {ex.Message}");
+                        Logger.Log($"⚠ Failed to create directory '{dirName}': {ex.Message}");
                         continue;
                     }
                 }
@@ -505,12 +503,12 @@ namespace BackupWorkstation
                 {
                     File.Copy(file, destFile, true);
                     _filesCopied++;
-                    Log($"Copied file: {relativePath}");
+                    Logger.Log($"Copied file: {relativePath}");
                     ProgressChanged?.Invoke(_filesCopied, _totalFiles, $"Copying file: {relativePath}");
                 }
                 catch (Exception ex)
                 {
-                    Log($"⚠ Failed to copy '{relativePath}': {ex.Message}");
+                    Logger.Log($"⚠ Failed to copy '{relativePath}': {ex.Message}");
                 }
             }
         }
@@ -571,7 +569,7 @@ namespace BackupWorkstation
             }
             catch (Exception ex)
             {
-                Log($"⚠ Failed to collect printer info: {ex.Message}");
+                Logger.Log($"⚠ Failed to collect printer info: {ex.Message}");
             }
             writer.WriteLine("-------------------");
             writer.WriteLine("IP AND NETWORK INFORMATION");
@@ -599,12 +597,12 @@ namespace BackupWorkstation
             }
             catch (Win32Exception ex) when (ex.NativeErrorCode == 2)
             {
-                Log($"⚠ Command '{fileName}' not found on this system.");
+                Logger.Log($"⚠ Command '{fileName}' not found on this system.");
                 return "";
             }
             catch (Exception ex)
             {
-                Log($"⚠ Failed to run '{fileName} {args}': {ex.Message}");
+                Logger.Log($"⚠ Failed to run '{fileName} {args}': {ex.Message}");
                 return "";
             }
         }
@@ -617,7 +615,7 @@ namespace BackupWorkstation
             {
                 var procs = Process.GetProcessesByName(name);
                 if (procs.Length == 0) continue;
-                Log($"🛑 Terminating {procs.Length} process(es) named: {name}");
+                Logger.Log($"🛑 Terminating {procs.Length} process(es) named: {name}");
                 foreach (var proc in procs)
                 {
                     try
@@ -631,11 +629,11 @@ namespace BackupWorkstation
                                 proc.WaitForExit(5000);
                             }
                         }
-                        Log($"✔ Terminated process: {name} (pid {proc.Id})");
+                        Logger.Log($"✔ Terminated process: {name} (pid {proc.Id})");
                     }
                     catch (Exception ex)
                     {
-                        Log($"⚠ Failed to terminate {name} (pid {proc.Id}): {ex.Message}");
+                        Logger.Log($"⚠ Failed to terminate {name} (pid {proc.Id}): {ex.Message}");
                     }
                 }
             }
@@ -646,7 +644,7 @@ namespace BackupWorkstation
             {
                 var remaining = Process.GetProcessesByName(name);
                 if (remaining.Length > 0)
-                    Log($"⚠ Still {remaining.Length} process(es) named {name} remain after termination attempts.");
+                    Logger.Log($"⚠ Still {remaining.Length} process(es) named {name} remain after termination attempts.");
             }
         }
 
@@ -690,7 +688,7 @@ namespace BackupWorkstation
                     using var key = Registry.CurrentUser.OpenSubKey(subKeyPath);
                     if (key == null || (key.GetValueNames().Length == 0 && key.GetSubKeyNames().Length == 0))
                     {
-                        Log($"⚠ Skipping {kvp.Key} — key not found or empty: {kvp.Value}");
+                        Logger.Log($"⚠ Skipping {kvp.Key} — key not found or empty: {kvp.Value}");
                         continue;
                     }
 
@@ -708,27 +706,20 @@ namespace BackupWorkstation
                     {
                         proc.WaitForExit();
                         if (proc.ExitCode == 0)
-                            Log($"✅ Exported {kvp.Key} to: {regFile}");
+                            Logger.Log($"✅ Exported {kvp.Key} to: {regFile}");
                         else
-                            Log($"⚠ reg.exe exited with code {proc.ExitCode} — {kvp.Key} export may have failed.");
+                            Logger.Log($"⚠ reg.exe exited with code {proc.ExitCode} — {kvp.Key} export may have failed.");
                     }
                     else
                     {
-                        Log($"❌ Failed to start reg.exe for {kvp.Key} — process was null.");
+                        Logger.Log($"❌ Failed to start reg.exe for {kvp.Key} — process was null.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Log($"❌ Exception while exporting {kvp.Key}: {ex.Message}");
+                    Logger.Log($"❌ Exception while exporting {kvp.Key}: {ex.Message}");
                 }
             }
-        }
-
-        // Logging helper
-        private void Log(string message)
-        {
-            Logger.Log(message);
-            LogMessage?.Invoke(message);
         }
     }
 }

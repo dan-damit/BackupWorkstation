@@ -12,7 +12,7 @@ namespace BackupWorkstation
         // Fields
         private static string _logFilePath = string.Empty;
 
-        // Methods
+        // Initialization log file
         public static void Init(string logFilePath)
         {
             _logFilePath = logFilePath;
@@ -20,6 +20,7 @@ namespace BackupWorkstation
             File.WriteAllText(_logFilePath, $"Backup started: {DateTime.Now}\n");
         }
 
+        // Log a message with timestamp
         public static void Log(string message)
         {
             string line = $"[{DateTime.Now:HH:mm:ss}] {message}";

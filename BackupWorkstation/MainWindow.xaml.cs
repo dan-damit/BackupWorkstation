@@ -20,6 +20,7 @@ namespace BackupWorkstation
         private BackupManager _backupManager;
         private bool _sourceUserEditedByUser;
         private string? _autoSeedSourceUser;
+        private string? _backupRoot;
 
         // Constructor
         public MainWindow()
@@ -28,7 +29,6 @@ namespace BackupWorkstation
             lstLog.ItemsSource = _logEntries;
 
             _backupManager = new BackupManager();
-            _backupManager.LogMessage += OnLogMessage;
             _backupManager.ProgressChanged += OnProgressChanged;
         }
 
@@ -60,6 +60,9 @@ namespace BackupWorkstation
         // On window load, populate current user info
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            _backupRoot = txtBackupPath.Text;
+            ManifestWriter.Initialize(_backupRoot);
+
             _autoSeedSourceUser = CurrentUserInfo.GetUserPrincipal();
             txtUsername.Text = _autoSeedSourceUser;
 
@@ -72,9 +75,6 @@ namespace BackupWorkstation
         {
             // If the current text differs from the auto-seed, mark as edited.
             _sourceUserEditedByUser = !string.Equals(txtUsername.Text, _autoSeedSourceUser, StringComparison.Ordinal);
-            // Optionally record the override immediately or wait until save/run.
-            if (_sourceUserEditedByUser)
-                ManifestWriter.Append("source_user_override_temp", txtUsername.Text);
         }
 
         // Reset the source username to the auto-detected value

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -19,7 +20,11 @@ namespace BackupWorkstation
         public static void Append(string key, string? value)
         {
             if (string.IsNullOrEmpty(_manifestPath))
-                throw new InvalidOperationException("ManifestWriter not initialized.");
+            {
+                // Optional: log to debug or show a message
+                Debug.WriteLine("ManifestWriter not initialized. Skipping append.");
+                return;
+            }
 
             lock (_lock)
             {
